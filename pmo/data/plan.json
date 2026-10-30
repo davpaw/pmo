@@ -81,7 +81,7 @@
             },
             {
               "id": "4.1.2",
-              "title": "Open step",
+              "title": "HiddenIncompleteStep",
               "summary": "s",
               "status": "incomplete",
               "kind": "build",

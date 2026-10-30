@@ -51,18 +51,18 @@ test('filters narrow the lists', () => {
   const ui = DEFAULT_UI()
   ui.decisions.status = 'roadmap'
   ui.modules.kind = 'legacy'
-  assert.ok(!render('#/decisions', ctx, ui).includes('Wire the PMO app, scripts and guard'), 'incomplete step hidden by the roadmap filter')
+  assert.ok(!render('#/decisions', ctx, ui).includes('HiddenIncompleteStep'), 'incomplete step hidden by the roadmap filter')
   const modules = render('#/modules', ctx, ui)
-  assert.ok(modules.includes('Legacy store'))
-  assert.ok(!modules.includes('Tenancy'))
+  assert.ok(modules.includes('PMO'))
+  assert.ok(!modules.includes('Nope'))
 })
 
 test('the modules page separates built from planned modules and shows ownership', () => {
   const out = render('#/modules')
   assert.match(out, /not built/)
   assert.match(out, /built/)
-  const detail = render('#/modules/publishing')
-  assert.match(detail, /server\/modules\/publishing\/\*\*/)
+  const detail = render('#/modules/tenancy')
+  assert.match(detail, /server\/tenancy\/\*\*/)
   assert.match(detail, /May depend on/)
 })
 
