@@ -1,0 +1,28 @@
+{
+  "name": "pmo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Program management: the plan of record, module catalog, guardrails and build-time agent. Static app plus a git-aware CLI. Attach under pmo/ in any repository.",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "bin": {
+    "pmo": "./scripts/pmo.mjs"
+  },
+  "scripts": {
+    "dev": "node scripts/pmo.mjs build --git && vite",
+    "build": "node scripts/pmo.mjs build --git && vite build",
+    "preview": "vite preview",
+    "cli": "node scripts/pmo.mjs",
+    "test": "node --test src/*.test.js src/agent/*.test.js src/node/*.test.js src/ui/*.test.js"
+  },
+  "devDependencies": {
+    "vite": "^8.2.0"
+  },
+  "license": "UNLICENSED",
+  "sideEffects": [
+    "./src/main.js"
+  ]
+}

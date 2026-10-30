@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "note": "Hand-kept declaration of every module. The PMO tool is the only module in this repository.",
+  "maturityLevels": {
+    "delivered": "Built, tested and used.",
+    "pilot-grade": "Works end to end locally; not production.",
+    "prototype": "Proven in a demo; shape may change.",
+    "scaffold": "Directory and contract exist; little behaviour.",
+    "planned": "Declared and owned, nothing built yet."
+  },
+  "modules": {
+    "pmo": {
+      "title": "PMO",
+      "summary": "Plan of record, guardrails, briefings, isolation checks and the build-time agent. Attached under pmo/ in a host repository.",
+      "kind": "tooling",
+      "maturity": "pilot-grade",
+      "owns": [
+        "pmo/**"
+      ],
+      "tags": [
+        "tooling"
+      ]
+    }
+  }
+}

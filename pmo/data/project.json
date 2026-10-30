@@ -1,0 +1,113 @@
+{
+  "name": "PMO",
+  "repository": "davpaw/pmo",
+  "mainBranch": "main",
+  "remote": "origin",
+  "node": {
+    "min": "20.19.0",
+    "note": "vite 8 needs Node 20.19+ or 22.12+."
+  },
+  "install": "npm install",
+  "branching": {
+    "step": "^step/(\\d+\\.\\d+\\.\\d+)-([a-z0-9][a-z0-9-]{0,48})$",
+    "plan": "^plan/([a-z0-9][a-z0-9-]{0,48})$",
+    "release": "^release/([a-z0-9][a-z0-9.-]{0,48})$",
+    "protected": [
+      "main"
+    ],
+    "rules": [
+      "One step per branch. The branch name is the claim: step/<id>-<slug>.",
+      "A step can start only when every dependsOn step is complete on main.",
+      "plan/<slug> branches may change only pmo/data/** and docs/**. Nothing else.",
+      "release/<slug> branches may change only package.json and package-lock.json.",
+      "Never commit to main directly; every change arrives by pull request."
+    ]
+  },
+  "commit": {
+    "stepPrefix": "^\\[(\\d+\\.\\d+\\.\\d+)\\] \\S",
+    "planPrefix": "^plan: \\S",
+    "releasePrefix": "^release: \\S",
+    "example": "[1.1.1] Extract PMO into a standalone package",
+    "exempt": "^(Merge |Revert )"
+  },
+  "alwaysAllowedPaths": [
+    "pmo/data/plan.json",
+    "pmo/data/catalog.generated.json"
+  ],
+  "frozenPaths": [
+    {
+      "glob": "server/store.js",
+      "reason": "Legacy monolith (3k+ lines). It only shrinks: change it in a step that lists legacy-store.",
+      "unlessModule": "legacy-store"
+    },
+    {
+      "glob": "src/main.js",
+      "reason": "Legacy UI monolith (7k+ lines). It only shrinks: change it in a step that lists legacy-ui.",
+      "unlessModule": "legacy-ui"
+    },
+    {
+      "glob": "server/app.js",
+      "reason": "Legacy API surface. New endpoints belong to a module's own router.",
+      "unlessModule": "legacy-api"
+    },
+    {
+      "glob": "pmo/src/agent/instructions.js",
+      "reason": "The PMO Agent charter. Change it only through a reviewed step or plan branch that lists pmo.",
+      "unlessModule": "pmo"
+    },
+    {
+      "glob": ".env",
+      "reason": "Local environment. Never committed; put new settings in .env.example and secrets in .env.local.",
+      "allowOnBranchKind": "none"
+    }
+  ],
+  "sharedPaths": [],
+  "contractPaths": [],
+  "isolationExempt": [
+    "tests/**",
+    "pmo/**"
+  ],
+  "validators": [
+    {
+      "run": "npm test",
+      "modules": [
+        "pmo"
+      ],
+      "name": "unit and render tests",
+      "id": "unit-tests"
+    },
+    {
+      "run": "npm run pmo:validate",
+      "paths": [
+        "pmo/data/"
+      ],
+      "name": "pmo data validation",
+      "id": "pmo-validate"
+    }
+  ],
+  "services": {
+    "pmo": {
+      "command": "npm run pmo:dev",
+      "port": 5299
+    }
+  },
+  "ports": {
+    "pmo": 5299,
+    "pmo-preview": 4299
+  },
+  "tests": {
+    "root": "npm test",
+    "package": "node --test <file>",
+    "allPackages": "npm test"
+  },
+  "completion": {
+    "prChecklist": [
+      "Step status, evidence and completedAt are set in pmo/data/plan.json, with evidence paths that exist.",
+      "npm run pmo -- check --for-pr passes.",
+      "npm test passes; new behaviour has tests.",
+      "Every guardrail that applies is named in the description with how it is met.",
+      "New settings are in .env.example; no secret is committed or sent to the browser.",
+      "UI changes were exercised, or the description says they were not."
+    ]
+  }
+}

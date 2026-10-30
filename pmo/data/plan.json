@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "workstreams": [
+    {
+      "id": "1",
+      "title": "Standalone PMO",
+      "summary": "Extract the PMO tool into a standalone, attachable package and use it against itself.",
+      "epics": [
+        {
+          "id": "1.1",
+          "title": "Package extraction",
+          "summary": "Make PMO a standalone repository that can be attached to any project.",
+          "steps": [
+            {
+              "id": "1.1.1",
+              "title": "Create standalone PMO project from the vendored package",
+              "summary": "Copy the adapted PMO tool into its own repository, add a package manifest and host-level scripts, and seed its own PMO data.",
+              "status": "complete",
+              "kind": "build",
+              "modules": ["pmo"],
+              "dependsOn": [],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "Mechanical extraction; tests carried over." },
+              "value": { "score": 4, "why": "Enables reuse across projects." },
+              "acceptance": ["npm test passes in the new repository", "npm run pmo -- validate passes"],
+              "evidence": ["pmo/package.json", "pmo/src/cli.js"],
+              "completedAt": "2026-10-30"
+            },
+            {
+              "id": "1.1.2",
+              "title": "Document attachment as a git submodule",
+              "summary": "Add instructions for attaching PMO to a host repository under pmo/ and running it.",
+              "status": "incomplete",
+              "kind": "build",
+              "modules": ["pmo"],
+              "dependsOn": ["1.1.1"],
+              "effort": { "size": "S" },
+              "risk": { "level": "low", "notes": "Documentation only." },
+              "value": { "score": 3, "why": "Makes reuse discoverable." },
+              "acceptance": ["README documents submodule attach and basic commands"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

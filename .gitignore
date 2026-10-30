@@ -1,0 +1,9 @@
+node_modules/
+pmo/node_modules/
+pmo/dist/
+dist/
+.runtime/
+.env
+.env.local
+.DS_Store
+pmo/public/data/live.json
