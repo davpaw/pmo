@@ -3,41 +3,168 @@
   "workstreams": [
     {
       "id": "1",
-      "title": "Standalone PMO",
-      "summary": "Extract the PMO tool into a standalone, attachable package and use it against itself.",
+      "title": "Bootstrap",
+      "summary": "Initial standalone package.",
       "epics": [
         {
           "id": "1.1",
-          "title": "Package extraction",
-          "summary": "Make PMO a standalone repository that can be attached to any project.",
+          "title": "Package",
+          "summary": "Extract.",
           "steps": [
             {
               "id": "1.1.1",
-              "title": "Create standalone PMO project from the vendored package",
-              "summary": "Copy the adapted PMO tool into its own repository, add a package manifest and host-level scripts, and seed its own PMO data.",
+              "title": "Done",
+              "summary": "s",
               "status": "complete",
+              "kind": "build",
+              "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"],
+              "evidence": ["pmo/package.json"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "title": "PMO tooling",
+      "summary": "Tooling steps.",
+      "epics": [
+        {
+          "id": "4.1",
+          "title": "Editor",
+          "summary": "Plan editing.",
+          "steps": [
+            {
+              "id": "4.1.1",
+              "title": "Done",
+              "summary": "s",
+              "status": "complete",
+              "kind": "build",
+              "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"],
+              "evidence": ["pmo/package.json"]
+            },
+            {
+              "id": "4.1.2",
+              "title": "Open step",
+              "summary": "s",
+              "status": "roadmap",
+              "kind": "build",
+              "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"]
+            },
+            {
+              "id": "4.1.3",
+              "title": "Roadmap step",
+              "summary": "s",
+              "status": "roadmap",
+              "kind": "build",
+              "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "title": "Plan editing",
+      "summary": "Editing steps.",
+      "epics": [
+        {
+          "id": "6.1",
+          "title": "Steps",
+          "summary": "Step editing.",
+          "steps": [
+            {
+              "id": "6.1.1",
+              "title": "Complete step",
+              "summary": "s",
+              "status": "complete",
+              "kind": "build",
+              "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"],
+              "evidence": ["pmo/package.json"]
+            },
+            {
+              "id": "6.1.2",
+              "title": "Depended roadmap",
+              "summary": "s",
+              "status": "roadmap",
               "kind": "build",
               "modules": ["pmo"],
               "dependsOn": [],
               "effort": { "size": "M" },
-              "risk": { "level": "low", "notes": "Mechanical extraction; tests carried over." },
-              "value": { "score": 4, "why": "Enables reuse across projects." },
-              "acceptance": ["npm test passes in the new repository", "npm run pmo -- validate passes"],
-              "evidence": ["pmo/package.json", "pmo/src/cli.js"],
-              "completedAt": "2026-10-30"
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"]
             },
             {
-              "id": "1.1.2",
-              "title": "Document attachment as a git submodule",
-              "summary": "Add instructions for attaching PMO to a host repository under pmo/ and running it.",
-              "status": "incomplete",
+              "id": "6.1.3",
+              "title": "Dependent",
+              "summary": "s",
+              "status": "roadmap",
               "kind": "build",
               "modules": ["pmo"],
-              "dependsOn": ["1.1.1"],
-              "effort": { "size": "S" },
-              "risk": { "level": "low", "notes": "Documentation only." },
-              "value": { "score": 3, "why": "Makes reuse discoverable." },
-              "acceptance": ["README documents submodule attach and basic commands"]
+              "dependsOn": ["6.1.2"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"]
+            },
+            {
+              "id": "6.1.9",
+              "title": "Last",
+              "summary": "s",
+              "status": "roadmap",
+              "kind": "build",
+              "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "title": "Self-hosting",
+      "summary": "Self.",
+      "epics": [
+        {
+          "id": "7.1",
+          "title": "Self",
+          "summary": "Self.",
+          "steps": [
+            {
+              "id": "7.1.1",
+              "title": "Self step",
+              "summary": "s",
+              "status": "roadmap",
+              "kind": "build",
+              "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "low", "notes": "n" },
+              "value": { "score": 3, "why": "w" },
+              "acceptance": ["a"]
             }
           ]
         }
