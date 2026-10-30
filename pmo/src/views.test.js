@@ -50,7 +50,7 @@ test('data values are escaped, not interpreted', () => {
 test('filters narrow the lists', () => {
   const ui = DEFAULT_UI()
   ui.decisions.status = 'roadmap'
-  ui.modules.kind = 'legacy'
+  ui.modules.kind = 'tooling'
   assert.ok(!render('#/decisions', ctx, ui).includes('HiddenIncompleteStep'), 'incomplete step hidden by the roadmap filter')
   const modules = render('#/modules', ctx, ui)
   assert.ok(modules.includes('PMO'))

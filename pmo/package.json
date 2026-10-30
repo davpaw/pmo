@@ -16,8 +16,17 @@
     "build": "node scripts/pmo.mjs build --git && vite build",
     "preview": "vite preview",
     "cli": "node scripts/pmo.mjs",
+    "init": "node scripts/pmo.mjs init",
     "test": "node --test src/*.test.js src/agent/*.test.js src/node/*.test.js src/ui/*.test.js"
   },
+  "files": [
+    "scripts/",
+    "src/",
+    "data/",
+    "public/",
+    "index.html",
+    "vite.config.js"
+  ],
   "devDependencies": {
     "vite": "^8.2.0"
   },

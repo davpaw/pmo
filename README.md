@@ -4,8 +4,17 @@ Standalone, attachable program-management tooling: a plan of record, module cata
 
 ## Attach to a project
 
+### Git submodule
+
 ```sh
 git submodule add <pmo-repo-url> pmo
+```
+
+### npm install
+
+```sh
+npm install <pmo-package-or-git-url>
+npx pmo init
 ```
 
 Add scripts to the host `package.json`:
