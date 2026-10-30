@@ -8,8 +8,8 @@
     "pmo": "node pmo/scripts/pmo.mjs",
     "pmo:build": "node pmo/scripts/pmo.mjs build --git",
     "pmo:validate": "node pmo/scripts/pmo.mjs validate --fresh",
-    "pmo:dev": "node pmo/scripts/pmo.mjs build --git && vite pmo",
-    "pmo:preview": "vite preview pmo",
+    "pmo:dev": "node pmo/scripts/pmo.mjs build --git && node pmo/scripts/run-vite.mjs dev",
+    "pmo:preview": "node pmo/scripts/run-vite.mjs preview",
     "test": "node --test pmo/src/*.test.js pmo/src/agent/*.test.js pmo/src/node/*.test.js pmo/src/ui/*.test.js",
     "build": "vite build"
   },

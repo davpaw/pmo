@@ -27,7 +27,7 @@
     "index.html",
     "vite.config.js"
   ],
-  "devDependencies": {
+  "dependencies": {
     "vite": "^8.2.0"
   },
   "license": "UNLICENSED",

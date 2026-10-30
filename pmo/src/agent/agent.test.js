@@ -137,7 +137,7 @@ test('prompt: text in the snapshot cannot close the fence or fake a system block
 
 test('prompt: the real repository snapshot carries the guardrails, the plan and the git rules', () => {
   const knowledge = loadKnowledge(ROOT)
-  for (const needle of ['G-001', 'G-017', '1.1.1', 'step/<id>-<slug>', 'AGENTS.md', 'Implement step', 'docs/decisions.md', 'publishing-providers']) assert.ok(knowledge.includes(needle), needle)
+  for (const needle of ['G-004', 'G-014', '1.1.1', 'step/<id>-<slug>', 'AGENTS.md', 'Implement step', 'docs/decisions.md', 'publishing-providers']) assert.ok(knowledge.includes(needle), needle)
   assert.ok(knowledge.length < 120_000, `snapshot is ${knowledge.length} characters`)
 })
 

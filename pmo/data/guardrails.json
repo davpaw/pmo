@@ -3,53 +3,6 @@
   "note": "Rules every step must respect. Cite the id in a pull request. enforcement.kind manual means a person checks it today; a note says which step promotes it to a test.",
   "rules": [
     {
-      "id": "G-001",
-      "title": "Tenant isolation",
-      "rule": "Every query and write on org-scoped data carries the org id from the authenticated session. Repository functions take an org context; code that reads org data without one does not merge.",
-      "source": "docs/decisions.md D-005",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "should",
-      "appliesTo": [
-        "tag:tenancy",
-        "kind:platform"
-      ],
-      "note": "Parked by D-020 (single org). Returns when a second org is introduced; person-level isolation is G-021."
-    },
-    {
-      "id": "G-002",
-      "title": "Posts go out only through the publisher",
-      "rule": "Only the publisher posts to a platform, using the owner's own connection. No agent, endpoint or script sends to a platform any other way, and the daily cap, duplicate guard and pause switch always apply.",
-      "source": "docs/decisions.md D-019, D-021",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:publishing",
-        "module:publishing-providers",
-        "module:approvals"
-      ],
-      "note": "Tested for the LinkedIn publisher in tests/linkedin.test.js and tests/posting.test.js."
-    },
-    {
-      "id": "G-003",
-      "title": "A person approves their own posts if they choose to",
-      "rule": "Each person can require their own approval before their posts go out. When they have, nothing posts for them until they approve it; no one else's approval substitutes. The default is no approval step.",
-      "source": "docs/decisions.md D-021",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:approvals",
-        "module:content",
-        "module:publishing"
-      ],
-      "note": "The per-person setting and its enforcement arrive in step 10.2.2."
-    },
-    {
       "id": "G-004",
       "title": "Agents propose, never execute",
       "rule": "Agents and the assistant hold read tools and propose tools only. A write they want is a proposal shown to a person; it runs only when that person confirms, as that person, through the same server function and rules as the UI, once and within a short expiry. No agent holds a credential or an execute tool, and no tool reads or sets a credential. Autonomy defaults to recommend-only.",
@@ -60,9 +13,9 @@
       },
       "severity": "must",
       "appliesTo": [
-        "module:agents-runtime",
-        "module:assistant",
-        "module:model-gateway"
+        "module:pmo",
+        "kind:tooling",
+        "tag:tooling"
       ]
     },
     {
@@ -76,8 +29,7 @@
       "severity": "must",
       "appliesTo": [
         "all"
-      ],
-      "note": "Org credentials are encrypted at rest and never returned (6.1.10); a test over the API surface for secret leakage and key rotation arrive with 6.1.1."
+      ]
     },
     {
       "id": "G-006",
@@ -90,89 +42,24 @@
       },
       "severity": "must",
       "appliesTo": [
-        "module:model-gateway",
-        "module:assistant",
-        "module:trends",
-        "module:agents-runtime",
         "module:pmo",
-        "module:ingestion"
+        "kind:tooling",
+        "tag:tooling"
       ]
     },
     {
       "id": "G-007",
       "title": "Models only through the gateway",
-      "rule": "MarketCircle holds no provider SDKs. Every model call goes through the model gateway, whose provider is configuration: a direct OpenAI-compatible API by default, or AIRouter when selected. Keys and tokens stay on the server, and every call has a timeout, a token cap and a per-org budget.",
+      "rule": "The application holds no provider SDKs. Every model call goes through the model gateway, whose provider is configuration: a direct OpenAI-compatible API by default, or AIRouter when selected. Keys and tokens stay on the server, and every call has a timeout, a token cap and a per-org budget.",
       "source": "docs/decisions.md D-011",
       "enforcement": {
         "kind": "manual"
       },
       "severity": "must",
       "appliesTo": [
-        "module:model-gateway",
-        "module:agents-runtime",
-        "module:assistant",
-        "module:pmo"
-      ],
-      "note": "Becomes a validator that fails on provider SDK imports or model hostnames outside the gateway."
-    },
-    {
-      "id": "G-008",
-      "title": "Side effects are idempotent and audited",
-      "rule": "Every external send or credential change carries an idempotency key and writes an audit event with actor kind (human, agent or system), org, target and result. Retrying never double-posts.",
-      "source": "docs/guidelines.md#side-effects",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:publishing",
-        "module:publishing-providers",
-        "module:credentials"
-      ]
-    },
-    {
-      "id": "G-009",
-      "title": "Kill switch and rate caps",
-      "rule": "Every org has a pause-all control and per-account rate caps. A paused org publishes nothing and agents keep proposing. Caps are enforced before the provider call.",
-      "source": "docs/guidelines.md#side-effects",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:publishing",
-        "module:approvals"
-      ]
-    },
-    {
-      "id": "G-010",
-      "title": "Disclosure and consent",
-      "rule": "Each channel carries an AI-assistance disclosure setting that is honoured where the platform requires it. SMS and email honour opt-outs, consent records and quiet hours before a send is queued.",
-      "source": "docs/decisions.md D-003",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:approvals",
-        "module:publishing-providers"
-      ]
-    },
-    {
-      "id": "G-011",
-      "title": "Simulated is labelled",
-      "rule": "Synthetic or simulated providers, metrics and tests are labelled as such wherever shown and are never summed with live data.",
-      "source": "docs/guidelines.md#synthetic-data",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:monitoring",
-        "module:publishing-providers",
-        "module:legacy-ui",
-        "module:assistant-ui",
-        "module:ingestion"
+        "module:pmo",
+        "kind:tooling",
+        "tag:tooling"
       ]
     },
     {
@@ -226,9 +113,9 @@
       },
       "severity": "must",
       "appliesTo": [
-        "module:legacy-ui",
-        "module:assistant-ui",
-        "module:pmo"
+        "module:pmo",
+        "kind:tooling",
+        "tag:tooling"
       ],
       "note": "Existing code violates this; step 1.2.3 closes the gap and promotes it to a test."
     },
@@ -244,112 +131,6 @@
       "appliesTo": [
         "all"
       ]
-    },
-    {
-      "id": "G-017",
-      "title": "Additive, reversible migrations",
-      "rule": "Schema changes are versioned migrations that add before they remove, are safe to re-run, and have a documented way back. Destructive changes need their own step and a backup note.",
-      "source": "docs/guidelines.md#database",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "should",
-      "appliesTo": [
-        "module:database",
-        "module:legacy-store"
-      ]
-    },
-    {
-      "id": "G-018",
-      "title": "Respectful collection",
-      "rule": "Every fetch obeys robots.txt (including Crawl-delay), identifies itself with an honest User-Agent and contact URL, and is rate limited per origin with jitter. A 403, 429 or bot challenge ends collection from that origin for the run and flags the source; nothing rotates IPs, spoofs a browser, solves challenges or otherwise evades bot controls. HTML scraping needs a recorded ToS review; otherwise a source is limited to feeds and APIs.",
-      "source": "docs/decisions.md D-012",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:ingestion",
-        "tag:collection"
-      ],
-      "note": "Becomes tests against a local fake server in step 3.3.2."
-    },
-    {
-      "id": "G-019",
-      "title": "Content rights and retention",
-      "rule": "Collection stores a snippet, the URL and metadata, not full articles. It never bypasses a paywall or login. Items expire after the retention window (default 90 days) and an exclusion list stops a URL, host or phrase being collected or shown. Attribution to the source is kept wherever an item is shown.",
-      "source": "docs/decisions.md D-013",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:ingestion",
-        "module:trends",
-        "tag:collection"
-      ],
-      "note": "Becomes a test in step 3.3.15."
-    },
-    {
-      "id": "G-020",
-      "title": "Fetcher safety",
-      "rule": "The fetcher refuses private, loopback and link-local addresses (re-checked after every redirect and DNS lookup), enforces size, time and content-type limits, and sanitises anything it renders. Only the polite fetcher makes collection requests.",
-      "source": "docs/guidelines.md#collection",
-      "enforcement": {
-        "kind": "manual"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:ingestion"
-      ],
-      "note": "Becomes tests in step 3.3.2."
-    },
-    {
-      "id": "G-021",
-      "title": "A token is used only for its owner's posts",
-      "rule": "A person's access token is stored encrypted, never returned by an API, never sent to the browser or the assistant, never logged, and used only to post what that person (or their own saved settings) caused. No endpoint, tool or job may use one person's connection for another person.",
-      "source": "docs/decisions.md D-019",
-      "enforcement": {
-        "kind": "validator",
-        "ref": "package.json"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:connections",
-        "module:publishing",
-        "module:assistant"
-      ],
-      "note": "Enforced by npm test. Owner-scoped OAuth and posting safeguard tests arrive with step 10.1.1; scheduled undo-window coverage arrives with step 10.2.1."
-    },
-    {
-      "id": "G-022",
-      "title": "Autonomous posting has safeguards",
-      "rule": "Because posting needs no approver by default, every post is checked against the person's daily cap, a duplicate-text guard and the workspace pause switch before it is sent; an expired or revoked connection blocks posting with a clear message; and scheduled posts have an undo window with the person notified.",
-      "source": "docs/decisions.md D-021",
-      "enforcement": {
-        "kind": "validator",
-        "ref": "package.json"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:publishing"
-      ],
-      "note": "Enforced by npm test. Owner-scoped OAuth and posting safeguard tests arrive with step 10.1.1; scheduled undo-window coverage arrives with step 10.2.1."
-    },
-    {
-      "id": "G-023",
-      "title": "Client PII is encrypted, hashed in display and owner-scoped",
-      "rule": "A client's name, email, phone and credential are encrypted at rest, never returned by an API, never logged, and shown only as a keyed hash. Clients are identified by an alias that contains no PII. Every client query is scoped to the signed-in owner, and client routes authenticate by the signed session only.",
-      "source": "docs/decisions.md D-024",
-      "enforcement": {
-        "kind": "validator",
-        "ref": "package.json"
-      },
-      "severity": "must",
-      "appliesTo": [
-        "module:clients"
-      ],
-      "note": "Enforced by npm test (tests/clients.test.js)."
     }
   ]
 }

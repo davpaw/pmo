@@ -23,7 +23,8 @@ Add scripts to the host `package.json`:
 {
   "scripts": {
     "pmo": "node pmo/scripts/pmo.mjs",
-    "pmo:dev": "node pmo/scripts/pmo.mjs build --git && vite pmo",
+    "pmo:dev": "node pmo/scripts/pmo.mjs build --git && node pmo/scripts/run-vite.mjs dev",
+    "pmo:preview": "node pmo/scripts/run-vite.mjs preview",
     "pmo:validate": "node pmo/scripts/pmo.mjs validate --fresh",
     "test": "node --test pmo/src/*.test.js pmo/src/agent/*.test.js pmo/src/node/*.test.js pmo/src/ui/*.test.js"
   }
