@@ -20,6 +20,21 @@
       "tags": [
         "tooling"
       ]
+    },
+    "tenancy": {
+      "title": "Tenancy",
+      "summary": "Org isolation (planned).",
+      "kind": "platform",
+      "maturity": "planned",
+      "owns": [
+        "server/tenancy/**"
+      ],
+      "dependsOn": [
+        "pmo"
+      ],
+      "tags": [
+        "platform"
+      ]
     }
   }
 }

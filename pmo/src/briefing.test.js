@@ -8,7 +8,13 @@ import { indexPlan } from './plan.js'
 
 const load = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../data/${name}`, import.meta.url)), 'utf8'))
 const plan = load('plan.json')
-const catalog = load('catalog.generated.json')
+const catalog = {
+  modules: [
+    { id: 'pmo', kind: 'tooling', maturity: 'pilot-grade', title: 'PMO', summary: 's', exists: true, owns: ['pmo/**'], dependsOn: [], gaps: [] },
+    { id: 'legacy-ui', kind: 'legacy', maturity: 'prototype', title: 'Legacy UI', summary: 's', exists: true, owns: ['src/*.js', 'src/views/**', 'index.html'], dependsOn: [], gaps: ['7k+ lines'] },
+    { id: 'tenancy', kind: 'platform', maturity: 'planned', title: 'Tenancy', summary: 's', exists: false, owns: ['server/tenancy/**'], dependsOn: [], gaps: ['Not shown.'] }
+  ]
+}
 const project = load('project.json')
 const guardrails = load('guardrails.json')
 const index = indexPlan(plan)
