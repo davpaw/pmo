@@ -1,4 +1,4 @@
-# PMO
+# PMO  Program Management in the age of AI and vibecoding
 
 Standalone, attachable program-management tooling: a plan of record, module catalog, guardrails, briefings and a git-aware CLI. Attach it to any repository as a git submodule under `pmo/`.
 
