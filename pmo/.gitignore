@@ -1,0 +1,7 @@
+.data/
+.runtime/
+node_modules/
+dist/
+public/data/live.json
+.env
+.env.local

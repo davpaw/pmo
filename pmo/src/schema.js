@@ -1,3 +1,4 @@
+import { validPrReference } from './pull-requests.js'
 /**
  * Plan schema: vocabulary, validation and the one place the numbers are defined.
  * Pure and browser-safe. No fs, no process, no git.
@@ -145,9 +146,12 @@ const validateStep = (step, where, { add, moduleIds, pathExists }) => {
     add(where, 'value needs an integer score 1-5 and why')
   }
   if (!isStringList(step.acceptance) || step.acceptance.length === 0) add(where, 'acceptance must list at least one testable outcome')
+  if (step.dismissedPullRequests !== undefined && (!Array.isArray(step.dismissedPullRequests) || step.dismissedPullRequests.some((ref) => !validPrReference(ref) || typeof ref.reason !== 'string' || ref.reason.trim().length < 12))) add(where, 'dismissedPullRequests must name PR references and a reviewable reason of at least 12 characters')
+  if (step.requiresPullRequests !== undefined && (!Array.isArray(step.requiresPullRequests) || step.requiresPullRequests.some((ref) => !validPrReference(ref)) || new Set(step.requiresPullRequests.map((ref) => `${ref.repository || ''}#${ref.number}`)).size !== step.requiresPullRequests.length)) add(where, 'requiresPullRequests must contain distinct positive PR numbers and optional owner/repository names')
   if (step.scope !== undefined) {
     if (!isObject(step.scope)) add(where, 'scope must be an object')
     else {
+      if (step.scope.upstreamExceptions !== undefined && (!Array.isArray(step.scope.upstreamExceptions) || step.scope.upstreamExceptions.some(entry => typeof entry?.path !== 'string' || entry.path.startsWith('/') || entry.path.split('/').some(part => !part || part === '..' || part === '.') || typeof entry.reason !== 'string' || entry.reason.trim().length < 20))) add(where, 'scope.upstreamExceptions needs safe package-relative paths and reviewed reasons of at least 20 characters')
       for (const key of ['extra', 'contracts', 'docs']) {
         if (step.scope[key] !== undefined && !isStringList(step.scope[key])) add(where, `scope.${key} must be a list of path globs`)
       }

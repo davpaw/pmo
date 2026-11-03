@@ -2,6 +2,8 @@
  * Plan queries: indexing, readiness, ranking and rollups. Pure and browser-safe.
  */
 
+import { phaseOf, phasePriority } from './phase.js'
+import { normalizedPrState, pullRequestBlockers } from './pull-requests.js'
 import { EFFORT_POINTS, RISK_FACTOR, compareIds, isOpen } from './schema.js'
 
 /**
@@ -13,7 +15,7 @@ import { EFFORT_POINTS, RISK_FACTOR, compareIds, isOpen } from './schema.js'
  */
 
 /** Build lookup tables over a plan. */
-export const indexPlan = (plan) => {
+export const indexPlan = (plan, { pullRequests = null, now = Date.now() } = {}) => {
   const steps = new Map()
   const epics = new Map()
   const workstreams = new Map()
@@ -22,7 +24,7 @@ export const indexPlan = (plan) => {
     for (const epic of ws.epics) {
       epics.set(epic.id, { ...epic, workstreamId: ws.id })
       for (const step of epic.steps) {
-        steps.set(step.id, { id: step.id, step, epic: { id: epic.id, title: epic.title }, workstream: { id: ws.id, title: ws.title } })
+        steps.set(step.id, { id: step.id, step, phase: phaseOf(step, phaseOf(epic, ws.tags) === 'unclassified' ? [] : [phaseOf(epic, ws.tags)]), epic: { id: epic.id, title: epic.title }, workstream: { id: ws.id, title: ws.title } })
       }
     }
   }
@@ -30,7 +32,7 @@ export const indexPlan = (plan) => {
   for (const { id, step } of steps.values()) {
     for (const dep of step.dependsOn ?? []) dependents.get(dep)?.push(id)
   }
-  return { plan, steps, epics, workstreams, dependents }
+  return { plan, steps, epics, workstreams, dependents, pullRequests: normalizedPrState(pullRequests), prNow: now }
 }
 
 export const getStep = (index, id) => index.steps.get(id)?.step ?? null
@@ -53,7 +55,7 @@ export const decisionScore = (step) => {
 export const readiness = (index, id) => {
   const entry = index.steps.get(id)
   if (!entry) return { exists: false, ready: false, blockers: [], unknown: [id] }
-  const blockers = []
+  const blockers = pullRequestBlockers(index, id)
   const unknown = []
   for (const dep of entry.step.dependsOn ?? []) {
     const target = index.steps.get(dep)
@@ -89,6 +91,7 @@ export const rankOpenSteps = (index, filter = {}) => {
   for (const entry of index.steps.values()) {
     const { step } = entry
     if (!isOpen(step)) continue
+    if (filter.phase && entry.phase !== filter.phase) continue
     if (filter.status && !filter.status.includes(step.status)) continue
     if (filter.module && !(step.modules ?? []).includes(filter.module)) continue
     if (filter.workstream && entry.workstream.id !== filter.workstream) continue
@@ -96,6 +99,7 @@ export const rankOpenSteps = (index, filter = {}) => {
     if (!filter.includeBlocked && !ready.ready) continue
     rows.push({
       id: entry.id,
+      phase: entry.phase,
       title: step.title,
       status: step.status,
       workstream: entry.workstream,
@@ -111,15 +115,13 @@ export const rankOpenSteps = (index, filter = {}) => {
       unblocks: transitiveDependents(index, entry.id).length,
     })
   }
-  return rows.sort((a, b) => (b.score - a.score) || (b.unblocks - a.unblocks) || compareIds(a.id, b.id))
+  return rows.sort((a, b) => (phasePriority(a.phase) - phasePriority(b.phase)) || (b.score - a.score) || (b.unblocks - a.unblocks) || compareIds(a.id, b.id))
 }
 
 /** The next n steps worth starting: ready, highest score first. in_progress steps lead. */
 export const nextSteps = (index, count = 5) => {
   const ranked = rankOpenSteps(index)
-  const inProgress = ranked.filter((row) => row.status === 'in_progress')
-  const rest = ranked.filter((row) => row.status !== 'in_progress')
-  return [...inProgress, ...rest].slice(0, count)
+  return ranked.sort((a, b) => phasePriority(a.phase) - phasePriority(b.phase) || Number(b.status === 'in_progress') - Number(a.status === 'in_progress')).slice(0, count)
 }
 
 const emptyCounts = () => ({ complete: 0, in_progress: 0, incomplete: 0, roadmap: 0, total: 0, remainingPoints: 0 })

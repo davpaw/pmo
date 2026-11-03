@@ -1,3 +1,5 @@
+import { normalizedPrState } from './pull-requests.js'
+import { createRepositoryRefresher } from './repository-client.js'
 /**
  * PMO: a read-only view of the plan, the module catalog, the
  * guardrails and the agent brief for every step. Data files are bundled;
@@ -20,12 +22,13 @@ const ctx = { plan, index: indexPlan(plan), catalog, guardrails, project, live: 
 
 const frame = (route) => html`<div class="shell">
   <header class="topbar"><h1>Program management</h1>
-    <span class="sub">Plan updated ${plan.updated}. ${ctx.live ? `Live git data from ${ctx.live.generatedAt}.` : 'No live git data.'}</span></header>
+    <span class="sub">Plan updated ${ctx.plan.updated || 'not recorded'}. ${ctx.repositoryState || ctx.live ? 'Local checkout facts are shown under Git and rules.' : 'No local checkout snapshot.'}</span></header>
   <nav class="nav" aria-label="Sections">${NAV.map(([key, label]) => html`<a href="#/${key}" ${route.name === key ? html`aria-current="page"` : ''}>${label}</a>`)}</nav>
   <main><h2 class="visually-hidden">${pageTitle(route)}</h2>${renderRoute(route, ctx, ui)}</main>
 </div>`
 
 const render = () => {
+  ctx.index.prNow = Date.now()
   const active = document.activeElement
   const focusKey = active?.dataset?.filter
   const caret = active?.selectionStart
@@ -42,6 +45,8 @@ const render = () => {
 app.addEventListener('input', (event) => applyFilter(event.target))
 app.addEventListener('change', (event) => applyFilter(event.target))
 app.addEventListener('click', async (event) => {
+  if (event.target.closest?.('[data-repository-refresh]')) { await refreshRepository(); return }
+  if (event.target.closest?.('[data-pr-refresh]')) { await refreshPrs(true); return }
   const button = event.target.closest?.('[data-copy]')
   if (!button) return
   const text = document.getElementById(button.dataset.copy)?.textContent ?? ''
@@ -66,6 +71,7 @@ function applyFilter(target) {
 window.addEventListener('hashchange', () => {
   render()
   window.scrollTo(0, 0)
+  refreshFacts()
 })
 
 render()
@@ -75,12 +81,58 @@ const agentHost = document.querySelector('#agent')
 if (agentHost) mountAgentPanel(agentHost)
 
 // Live facts are optional; the app is fully usable without them.
-fetch('/data/live.json')
+fetch('/data/live.json', { cache: 'no-store' })
   .then((response) => (response.ok ? response.json() : null))
   .then((live) => {
     if (live && typeof live === 'object') {
       ctx.live = live
+      if (!ctx.index.pullRequests || Date.parse(live.pullRequests?.checkedAt) > Date.parse(ctx.index.pullRequests.checkedAt)) {
+        ctx.plan = live.pullRequests?.approvedPlan || plan
+        ctx.index = indexPlan(ctx.plan, { pullRequests: live.pullRequests })
+      }
       render()
     }
   })
   .catch(() => {})
+
+let prRefresh = null
+async function refreshPrs(force = false) {
+  if (prRefresh) return prRefresh
+  prRefresh = (async () => {
+    try {
+      const response = await fetch('/api/pmo/prs', { method: force ? 'POST' : 'GET', ...(force ? { headers: { 'content-type': 'application/json' }, body: '{}' } : {}), cache: 'no-store' })
+      if (!response.ok) throw Error('unavailable')
+      const state = normalizedPrState((await response.json()).pullRequests)
+      if (!state) throw Error('state')
+      ctx.plan = state.approvedPlan || plan
+      ctx.index = indexPlan(ctx.plan, { pullRequests: state })
+      ctx.prMessage = state.ok ? 'PR tracking refreshed.' : state.error
+    } catch { ctx.prMessage = 'Local PR sync unavailable. Run npm run pmo -- prs sync and rebuild/refresh the PMO.' }
+    render()
+  })()
+  try { await prRefresh } finally { prRefresh = null }
+}
+refreshPrs()
+// Re-evaluate freshness even on a static site; local PMO instances also discover newly opened PRs.
+setInterval(() => { ctx.index.prNow = Date.now(); refreshPrs() }, 60_000)
+
+const refreshRepository = createRepositoryRefresher({ ctx, fetcher: (...args) => fetch(...args), render })
+refreshRepository()
+setInterval(refreshRepository, 60_000)
+
+let factsRequest = 0
+async function refreshFacts() {
+  const request = ++factsRequest
+  const route = parseRoute(window.location.hash)
+  if (route.name !== 'steps') return
+  try {
+    const response = await fetch(`/api/pmo/snapshot?step=${encodeURIComponent(route.arg || '')}`, { cache: 'no-store' })
+    if (!response.ok) return
+    const snapshot = await response.json()
+    if (request !== factsRequest || parseRoute(window.location.hash).arg !== route.arg) return
+    ctx.live = snapshot
+    render()
+  } catch { /* The brief remains explicitly unverified without local machine facts. */ }
+}
+refreshFacts()
+setInterval(refreshFacts, 30_000)

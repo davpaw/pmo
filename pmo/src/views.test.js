@@ -71,5 +71,14 @@ test('live git data appears when provided', () => {
   const out = render('#/git', { ...ctx, live })
   assert.match(out, /abc1234/)
   assert.match(out, /step\/2\.3\.1-x/)
-  assert.match(render('#/git'), /No live data/)
+  assert.match(render('#/git'), /No repository snapshot/)
+})
+
+test('pending PRs appear as decisions and claim branches remain readable and escaped',()=>{
+ const state={schemaVersion:1,repository:'owner/project',checkedAt:new Date().toISOString(),ok:true,pullRequests:[{number:21,title:'<review pending>',url:'https://github.com/owner/project/pull/21',kind:'delivery',state:'OPEN',baseRefName:'main',headRefName:'step/1.1.2-work',blocks:[],checks:[]}]}
+ const out=render('#/decisions',{...ctx,index:indexPlan(plan,{pullRequests:state})})
+ assert.match(out,/#21/);assert.match(out,/&lt;review pending&gt;/)
+ const gitOut=render('#/git',{...ctx,repositoryState:{generatedAt:new Date().toISOString(),branch:'step/1.1.2-long-name',head:'abc123',clean:false,branches:[]}})
+ assert.match(gitOut,/step\/1\.1\.2-long-name/)
+ assert.match(gitOut,/Uncommitted local changes/)
 })

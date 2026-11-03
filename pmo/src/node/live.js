@@ -5,8 +5,8 @@
 
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { classifyBranch } from '../isolation.js'
-import { allBranches, baseRef, claimsFor, commitCountFor, currentBranch, git, isClean, lastCommitFor, tagsFor } from './git.js'
+import { buildRepositoryState } from './repository-state.js'
+import { commitCountFor, lastCommitFor, tagsFor } from './git.js'
 
 const walk = (dir, out = []) => {
   for (const name of readdirSync(dir)) {
@@ -30,14 +30,8 @@ export const buildLive = ({ root, catalog, project }) => {
     testFiles[m.id] = statSync(dir).isDirectory() ? walk(dir).filter((f) => f.endsWith('.test.js')).length : (m.hasTests ? 1 : 0)
   }
 
-  const branches = allBranches(root, project.remote).map((name) => ({ name, ...classifyBranch(name, project) })).map(({ name, kind, stepId }) => ({ name, kind, stepId: stepId ?? null, active: kind === 'step' && claimsFor(root, project.remote, stepId, { base: baseRef(root, project) }).includes(name) }))
   return {
-    generatedAt: new Date().toISOString(),
-    branch: currentBranch(root),
-    head: git(root, ['rev-parse', '--short', 'HEAD']),
-    clean: isClean(root),
-    totalCommits: Number.parseInt(git(root, ['rev-list', '--count', 'HEAD']), 10),
-    branches,
+    ...buildRepositoryState({ root, catalog, project }),
     modules,
     testFiles,
   }

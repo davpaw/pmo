@@ -1,3 +1,4 @@
+import { readPrState } from './pull-requests.js'
 /**
  * Server-side inputs for the PMO Agent: the repository snapshot that goes into
  * its prompt, and the local env file that holds its AIRouter settings.
@@ -20,10 +21,12 @@ export const loadKnowledge = (root) => {
   const catalogPath = join(root, DATA, 'catalog.generated.json')
   const docsDir = join(root, 'docs')
   const contractsDir = join(root, 'server/contracts')
+  const pullRequests = readPrState(root)
   return buildKnowledge({
+    pullRequests,
     project: readJson(root, `${DATA}/project.json`),
     guardrails: readJson(root, `${DATA}/guardrails.json`),
-    plan: readJson(root, `${DATA}/plan.json`),
+    plan: pullRequests?.approvedPlan || readJson(root, `${DATA}/plan.json`),
     catalog: existsSync(catalogPath) ? readJson(root, `${DATA}/catalog.generated.json`) : { modules: [], agents: [] },
     documents: DOCUMENTS.filter((name) => existsSync(join(root, name))).map((name) => ({ path: name, text: readFileSync(join(root, name), 'utf8') })),
     docs: existsSync(docsDir)

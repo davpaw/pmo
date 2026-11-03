@@ -1,0 +1,52 @@
+name: PMO quality
+on: [pull_request, push]
+permissions:
+  contents: read
+jobs:
+  test:
+    name: tests (${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20.19.0', '22.13.0', '24.x']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install --ignore-scripts --package-lock=false
+      - run: npm test
+      - run: npm run build
+      - run: npm run pmo:validate
+  quality:
+    if: always()
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULT: ${{ needs.test.result }}
+        run: test "$RESULT" = success
+  guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+      - run: npm install --ignore-scripts --package-lock=false
+      - run: npm run pmo:validate
+      - env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [[ "$HEAD_REF" == step/* ]]; then
+            node pmo/scripts/pmo.mjs check --for-pr --branch "$HEAD_REF" --base "origin/$BASE_REF"
+          else
+            node pmo/scripts/pmo.mjs check --branch "$HEAD_REF" --base "origin/$BASE_REF"
+          fi
