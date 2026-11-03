@@ -1,3 +1,6 @@
+import { factsForStep, snapshotState } from './snapshot.js'
+import { prResolved, prStatus, prStateFresh } from './pull-requests.js'
+import { groupedClaims, repositoryFresh } from './repository-state.js'
 /**
  * PMO views. Pure: each takes the loaded context and returns an html`` result.
  * Every value from a data file is interpolated through the auto-escaping
@@ -62,6 +65,7 @@ const overview = (ctx) => {
   const blockingQuestions = [...index.steps.values()].filter(({ step }) => isOpen(step) && (step.questions ?? []).some((q) => q.blocking))
   const manualRules = (ctx.guardrails.rules ?? []).filter((rule) => rule.enforcement?.kind === 'manual')
   return html`
+    ${awaitingMergeQueue(ctx)}
     <div class="grid cards">
       <article class="card"><h3>Steps complete</h3><p class="big">${o.complete}<span class="muted"> / ${o.total}</span></p>${progress(o)}<p class="muted">${countLine(o)}</p></article>
       <article class="card"><h3>Remaining effort</h3><p class="big">${o.remainingPoints}<span class="muted"> pts</span></p><p class="muted">XS=1, S=2, M=3, L=5, XL=8 across open steps.</p></article>
@@ -145,6 +149,36 @@ const roadmapView = (ctx, ui) => {
       })}</section>`)}`
 }
 
+const prType = (pr) => pr.kind === 'delivery' ? 'Implementation delivery' : pr.kind === 'plan' ? 'Plan decision' : 'Other pull request'
+const prCard = (ctx, pr) => html`<article><h4><a href="${pr.url}" target="_blank" rel="noreferrer">#${pr.number}: ${pr.title}</a></h4>
+  <p>${prStatus(pr, ctx.index.pullRequests, ctx.index.prNow)} · ${prType(pr)} ${pr.stepId ? html`for ${stepLink(pr.stepId)}` : ''}</p>
+  ${pr.blocks.map((block) => html`<p>${stepLink(block.id, block.title)}: ${block.reason}${block.proposed ? ' (proposed only; not approved scope)' : ''}${block.followUps.length ? `; follows ${block.followUps.join(', ')}` : ''}</p>`)}
+</article>`
+
+const awaitingMergeQueue = (ctx) => {
+  const state = ctx.index.pullRequests
+  const fresh = prStateFresh(state, ctx.index.prNow)
+  const records = (state?.pullRequests || []).filter((pr) => pr.state === 'OPEN' || (pr.state === 'MERGED' && !pr.mergeVerified)).sort((a, b) => b.number - a.number)
+  return html`<section class="panel" aria-label="Awaiting review / merge"><h2>Awaiting review / merge ${chip(fresh ? 'info' : 'warn', fresh ? records.length : `${records.length} last known`)}</h2>
+    <p>${fresh ? `Checked ${state.checkedAt}.` : state ? `PR tracking is stale or unavailable. Last checked ${state.checkedAt}; refresh to verify the queue.` : 'PR tracking has not been synced. Refresh to load PRs awaiting review or merge.'} ${ctx.prMessage || ''}</p>
+    <button type="button" data-pr-refresh>Refresh PR tracking</button>
+    ${records.map((pr) => prCard(ctx, pr))}
+    ${!records.length ? html`<p class="muted">${fresh ? 'No PRs are awaiting review or merge.' : 'Waiting PRs are unknown until tracking is refreshed.'}</p>` : ''}
+  </section>`
+}
+
+const prTracking = (ctx, stepId = null) => {
+  const state = ctx.index.pullRequests
+  const records = (state?.pullRequests || []).filter((pr) => stepId ? pr.stepId === stepId || pr.blocks.some((b) => b.id === stepId) : pr.kind === 'plan' && pr.state !== 'OPEN' && pr.state !== 'MERGED' && !prResolved(pr, state, ctx.index.prNow))
+  if (!stepId && !records.length) return ''
+  return html`<section class="panel"><h3>${stepId ? 'Pull request delivery and prerequisites' : 'Unresolved closed PR decisions'}</h3>
+    <p>${state ? `Checked ${state.checkedAt}.` : 'PR tracking has not been synced.'} ${ctx.prMessage || ''}</p>
+    <button type="button" data-pr-refresh>Refresh PR tracking</button>
+    ${records.map((pr) => prCard(ctx, pr))}
+    ${!records.length ? html`<p class="muted">${state?.ok ? 'No matching PR delivery or prerequisites.' : 'Required PRs remain unresolved until sync can verify them.'}</p>` : ''}
+  </section>`
+}
+
 // --------------------------------------------------------------- decisions
 const decisionsView = (ctx, ui) => {
   const { index, plan } = ctx
@@ -154,7 +188,7 @@ const decisionsView = (ctx, ui) => {
     status: f.status === 'all' ? undefined : [f.status],
     workstream: f.workstream === 'all' ? undefined : f.workstream,
   })
-  return html`<p class="muted">Open steps ranked by decision score: value x 10 / effort points, discounted by risk (low x1, medium x0.8, high x0.6). Ties break on how much work the step unblocks.</p>
+  return html`${awaitingMergeQueue(ctx)}${prTracking(ctx)}<p class="muted">Open steps ranked by decision score: value x 10 / effort points, discounted by risk (low x1, medium x0.8, high x0.6). Ties break on how much work the step unblocks.</p>
     <div class="filters">
       ${select('decisions.status', f.status, [['all', 'all open'], ['incomplete', 'incomplete'], ['roadmap', 'roadmap'], ['in_progress', 'in progress']], 'Status')}
       ${select('decisions.workstream', f.workstream, [['all', 'all'], ...plan.workstreams.map((w) => [w.id, `${w.id}. ${w.title}`])], 'Workstream')}
@@ -163,22 +197,25 @@ const decisionsView = (ctx, ui) => {
     ${table(['Step', 'Status', 'Effort', 'Risk', 'Value', 'Score', 'Unblocks', 'Waiting on'], rows.map((r) => html`<tr>
       <td>${stepLink(r.id, r.title)}<div class="muted">${r.modules.join(', ')}</div></td><td>${statusChip(r.status)}</td><td>${r.effort?.size}</td>
       <td>${riskChip(r.risk)}</td><td>${r.value?.score}/5</td><td><strong>${r.score}</strong></td><td>${r.unblocks}</td>
-      <td>${r.blockedBy.length ? r.blockedBy.map((b, i) => html`${i > 0 ? ', ' : ''}<a href="#/steps/${b.id}">${b.id}</a>`) : html`<span class="muted">ready</span>`}</td></tr>`), 'No open step matches.')}`
+      <td>${r.blockedBy.length ? r.blockedBy.map((b, i) => html`${i > 0 ? ', ' : ''}${b.url ? html`<a href="${b.url}">${b.id}: ${b.status}</a>` : html`<span>${b.id}: ${b.status}</span>`}`) : html`<span class="muted">prerequisites satisfied; preflight unknown</span>`}</td></tr>`), 'No open step matches.')}`
 }
 
 // -------------------------------------------------------------- step detail
 const stepDetail = (ctx, id) => {
   const { index, catalog, project, guardrails } = ctx
   const entry = index.steps.get(id)
+  if (!entry && index.pullRequests?.pullRequests.some((pr) => pr.blocks.some((b) => b.id === id && b.proposed))) return html`<h2>Proposed step ${id}</h2><p>This step is pending plan review and merge. It is not approved scope and cannot start.</p>${prTracking(ctx, id)}`
   if (!entry) return html`<p>Unknown step "${id}". <a href="#/roadmap">Back to the roadmap</a></p>`
   const { step } = entry
   const open = isOpen(step)
   const ready = readiness(index, id)
   const unblocks = transitiveDependents(index, id)
-  const brief = open ? buildBrief({ index, id, catalog, project, guardrails }) : null
+  const brief = open ? buildBrief({ index, id, catalog, project, guardrails, facts: factsForStep(ctx, id) }) : null
   const markdown = brief ? renderBriefMarkdown(brief) : ''
   return html`
     <p><a href="#/roadmap">Roadmap</a> / ${entry.workstream.id}. ${entry.workstream.title} / ${entry.epic.id} ${entry.epic.title}</p>
+    ${prTracking(ctx, id)}
+    <p class="muted" role="status">${snapshotState(ctx.live, ctx.plan, Date.now(), ctx.catalog).detail}</p>
     <div class="panel">
       <h2>${id} ${step.title} ${statusChip(step.status)}</h2>
       <p>${step.summary}</p>
@@ -229,7 +266,11 @@ const guardrailsView = (ctx, ui) => {
 // --------------------------------------------------------------------- git
 const gitView = (ctx) => {
   const { project, live } = ctx
-  const claims = (live?.branches ?? []).filter((b) => b.kind === 'step')
+  const repository = ctx.repositoryState || live
+  const claims = groupedClaims(repository, ctx.index)
+  const fresh = repositoryFresh(repository, ctx.repositoryOnline, ctx.index.prNow)
+  const checked = Number.isFinite(Date.parse(repository?.generatedAt)) ? new Date(repository.generatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown'
+  const claimTable = (rows, empty) => table(['Step', 'Approved status', 'Branch'], rows.map(row => html`<tr><td>${stepLink(row.id, row.title)}</td><td>${statusChip(row.status)}</td><td><ul class="claim-branches">${row.branches.map(name => html`<li><code>${name}</code></li>`)}</ul></td></tr>`), empty)
   return html`
     ${section('Branching', html`<ul>${project.branching.rules.map((r) => html`<li>${r}</li>`)}</ul>
       <dl class="facts"><dt>Main</dt><dd><code>${project.mainBranch}</code> on <code>${project.remote}</code> (${project.repository})</dd>
@@ -240,10 +281,24 @@ const gitView = (ctx) => {
       <p class="muted">Shared contracts under <code>${project.contractPaths.join(', ')}</code> change only when the step names them in its scope.</p>`)}
     ${section('Enforcement', html`<ul><li>Local: <code>npm run pmo -- hooks install</code> sets up pre-commit and commit-msg hooks.</li>
       <li>CI: the pmo-guard workflow re-runs the same checks on every pull request. Hooks can be bypassed; CI is the check of record.</li>
-      <li>GitHub branch protection for main is a repository setting (plan step 6.1.5).</li></ul>`)}
-    ${section('Repository state', live ? html`<dl class="facts"><dt>Generated</dt><dd>${live.generatedAt}</dd><dt>Branch</dt><dd><code>${live.branch}</code> at <code>${live.head}</code> ${live.clean ? chip('ok', 'clean') : chip('warn', 'uncommitted changes')}</dd>
-        <dt>Commits</dt><dd>${live.totalCommits}</dd><dt>Claimed steps</dt><dd>${claims.length ? claims.map((b) => html`<a href="#/steps/${b.stepId}">${b.name}</a> `) : html`<span class="muted">no step branches</span>`}</dd></dl>`
-      : html`<p class="muted">No live data. Run <code>npm run pmo -- build --git</code> to generate it (git-ignored).</p>`)}`
+      <li>GitHub branch protection for main is a repository setting; verify required checks and reviews in the host repository.</li></ul>`)}
+    ${section('Repository state', html`
+      <p>The working-tree status below belongs to the local checkout serving this PMO. The approved plan and pull request delivery are tracked separately.</p>
+      <p>${chip(fresh ? 'ok' : 'warn', fresh ? 'Checked locally' : 'Snapshot — freshness unverified')} ${ctx.repositoryMessage || ''}</p>
+      <button type="button" data-repository-refresh>Refresh repository state</button>
+      ${repository ? html`<dl class="facts repository-facts"><dt>Last checked</dt><dd><time datetime="${repository.generatedAt}" title="${repository.generatedAt}">${checked}</time>${fresh ? '' : html` <span class="muted">(saved snapshot; current state unverified)</span>`}</dd>
+        <dt>Server checkout</dt><dd><code>${repository.branch}</code></dd>
+        <dt>Checkout commit</dt><dd><code>${repository.head}</code></dd>
+        <dt>Working tree</dt><dd>${repository.clean ? chip('ok', 'Clean') : chip('warn', 'Uncommitted local changes')}</dd>
+        <dt>Locally cached main</dt><dd><code>${repository.mainRef || `${project.remote}/${project.mainBranch}`}</code>${repository.mainHead ? html` at <code>${repository.mainHead.slice(0, 12)}</code>` : ' — unavailable'}</dd>
+        <dt>Checkout commits</dt><dd>${repository.totalCommits}</dd></dl>
+        <h3>Claimed steps (${claims.active.length})</h3>
+        ${claimTable(claims.active, 'No active claims in this snapshot.')}
+        ${!fresh ? html`<p class="muted">Refresh locally to verify current claims.</p>` : ''}
+        <details><summary>Inactive step branches (${claims.inactive.length} ${claims.inactive.length === 1 ? 'step' : 'steps'})</summary>${claimTable(claims.inactive, 'No inactive step branches in this snapshot.')}</details>
+        ${claims.unknown.length ? html`<details><summary>Activity unknown (${claims.unknown.length} ${claims.unknown.length === 1 ? 'step' : 'steps'})</summary><p>These entries lack verified activity metadata; refresh locally to classify them.</p>${claimTable(claims.unknown, '')}</details>` : ''}`
+      : html`<p class="muted">No repository snapshot is available. Run the local PMO to enable refresh, or generate a saved snapshot with <code>npm run pmo -- build --git</code>.</p>`}`)}`
+
 }
 
 export const DEFAULT_UI = () => ({
@@ -268,7 +323,9 @@ export const renderRoute = (route, ctx, ui) => {
 
 export const parseRoute = (hash) => {
   const [name = 'overview', arg] = String(hash).replace(/^#\/?/, '').split('/')
-  return { name: name || 'overview', arg: arg ? decodeURIComponent(arg) : undefined }
+  let decoded
+  try { decoded = arg ? decodeURIComponent(arg) : undefined } catch { return { name: 'invalid' } }
+  return { name: name || 'overview', arg: decoded }
 }
 
 export const pageTitle = (route) => (NAV.find(([key]) => key === route.name)?.[1] ?? (route.name === 'steps' ? `Step ${route.arg}` : 'Overview'))

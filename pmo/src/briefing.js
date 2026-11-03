@@ -166,6 +166,7 @@ export const buildBrief = ({ index, id, catalog, project, guardrails, facts }) =
       score: decisionScore(step),
       unblocks: transitiveDependents(index, id),
     },
+    pullRequests: ready.blockers.filter((b) => b.kind === 'pull_request'),
     prerequisites: (step.dependsOn ?? []).map((dep) => {
       const target = index.steps.get(dep)?.step
       return { id: dep, title: target?.title ?? '(unknown)', status: target?.status ?? 'unknown', done: target?.status === 'complete' }
@@ -217,7 +218,7 @@ export const buildBrief = ({ index, id, catalog, project, guardrails, facts }) =
     acceptance: step.acceptance ?? [],
     verification,
     completion: [
-      `Edit packages/pmo/data/plan.json for step ${id} only: status "complete", evidence (paths that exist), completedAt (YYYY-MM-DD), optional notes.`,
+      `Edit pmo/data/plan.json for step ${id} only: status "complete", evidence (paths that exist), completedAt (YYYY-MM-DD), optional notes.`,
       'Run: npm run pmo -- check --for-pr',
       'Commit with the [step id] prefix; push; open the pull request using the checklist above.',
       'List every assumption made for a non-blocking question in the PR description.',
@@ -252,6 +253,7 @@ export const renderBriefMarkdown = (brief) => {
 
   add('## Can it start?', brief.canStart.ok ? 'Yes.' : `No. ${brief.canStart.reasons.join('; ')}`, '')
   if (brief.preflight.length) add(bullet(brief.preflight.map((c) => `[${c.ok ? 'ok' : c.severity === 'block' ? 'BLOCK' : 'warn'}] ${c.id}: ${c.detail}`)), '')
+  if (brief.pullRequests?.length) add('## Pull request blockers', bullet(brief.pullRequests.map((p) => `${p.id}: ${p.status}. ${p.reason} ${p.url || ''}`)), '')
   if (brief.prerequisites.length) add('## Prerequisites', bullet(brief.prerequisites.map((p) => `${p.done ? '[done]' : '[open]'} ${p.id} ${p.title} (${p.status})`)), '')
 
   add('## Protocol', bullet(brief.protocol), '')

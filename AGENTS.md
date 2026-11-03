@@ -16,3 +16,6 @@ Read `pmo/data/plan.json` first, then docs.
 - Finishing a task (G-014): every agent updates the PMO before reporting a task done. Set the step status, evidence and completedAt in plan.json.
 - Models are reached through the model gateway (direct API by default, AIRouter optional).
 - publishing-providers module example for knowledge snapshot.
+## Attached-host improvements and completion
+
+Read `pmo/AGENTS.md` and `pmo/CONTRIBUTING.md`. PMO product requirements belong in this repository. Before completing a task, inspect worktrees, commit and push its work, open its PR, and run `pmo finish`. Reusable changes in a host must carry merged-upstream contribution receipts; project-specific data must never be exported here. Recovery bundles are not a normal handoff or finish mechanism.

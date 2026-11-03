@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "updated": "",
+  "workstreams": [
+    {
+      "id": "1",
+      "title": "Project bootstrap",
+      "summary": "Approve this project\u2019s plan and ownership before implementation.",
+      "epics": [
+        {
+          "id": "1.1",
+          "title": "Plan and scope",
+          "summary": "Project-owned planning decisions.",
+          "steps": [
+            {
+              "id": "1.1.1",
+              "title": "Approve the initial project plan and module ownership",
+              "summary": "Define the project plan, prerequisites, scope and evidence. PMO product requirements are contributed to the upstream PMO repository.",
+              "kind": "decision",
+              "status": "roadmap",
+              "modules": [
+                "pmo"
+              ],
+              "effort": {
+                "size": "S"
+              },
+              "risk": {
+                "level": "low",
+                "notes": "Planning only; source changes follow approved steps."
+              },
+              "value": {
+                "score": 5,
+                "why": "Establishes clear ownership and a plan of record."
+              },
+              "acceptance": [
+                "Initial project scope and module ownership are approved on main."
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

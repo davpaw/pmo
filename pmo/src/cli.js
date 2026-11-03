@@ -1,3 +1,8 @@
+import { checkUpstream, readUpstream } from './node/upstream.js'
+import { finishWork, worktreeInventory, orphanedWork } from './node/work-state.js'
+import { importSpecifiers } from './import-specifiers.js'
+import { prStateFresh, prStatus } from './pull-requests.js'
+import { readPrState, syncPullRequests, canSyncPrs } from './node/pull-requests.js'
 /**
  * The PMO command line. `run` takes its inputs explicitly (root, output sinks)
  * so tests can drive it against a throw-away git repository.
@@ -41,6 +46,7 @@ const readJson = (root, path) => JSON.parse(readFileSync(join(root, path), 'utf8
 export const loadData = (root) => {
   const catalogPath = join(root, DATA, 'catalog.generated.json')
   return {
+    pullRequests: readPrState(root),
     plan: readJson(root, `${DATA}/plan.json`),
     project: readJson(root, `${DATA}/project.json`),
     guardrails: readJson(root, `${DATA}/guardrails.json`),
@@ -117,7 +123,16 @@ export const evaluate = ({ root, data, branchName, base, staged = false, forPr =
   notes.push(`${scopeFor(branch, step, project, modules).note}; ${files.length} changed file(s)`)
 
   for (const v of checkChangedFiles(files, branch, step, project, modules)) add(v.rule, `${v.file}: ${v.reason}`)
-  for (const v of checkImports(added, modules, project)) add(v.rule, `${v.file}: ${v.reason}\n    ${v.line}`)
+  const importChanges = added.filter((a) => a.file.endsWith('/package.json'))
+  for (const file of files.filter((f) => /\.(js|mjs|cjs|jsx|ts|tsx)$/.test(f))) {
+    const previous = new Set(importSpecifiers(showAt(root, staged ? 'HEAD' : since, file) ?? ''))
+    const text = staged ? showAt(root, '', file) : existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : ''
+    for (const spec of importSpecifiers(text || '')) {
+      if (spec === null) add('import', `${file}: Computed module imports cannot establish a declared ownership boundary.`)
+      else if (!previous.has(spec)) importChanges.push({ file, text: `import ${JSON.stringify(spec)}` })
+    }
+  }
+  for (const v of checkImports(importChanges, modules, project)) add(v.rule, `${v.file}: ${v.reason}\n    ${v.line}`)
 
   if (commits && !staged) {
     for (const subject of git(root, ['log', '--format=%s', `${since}..HEAD`]).split('\n').filter(Boolean)) {
@@ -128,6 +143,8 @@ export const evaluate = ({ root, data, branchName, base, staged = false, forPr =
     if (branch.kind !== 'step') add('for-pr', 'Only step branches carry a step to complete.')
     else for (const message of checkReadyForPr(step, { pathExists: (p) => existsSync(join(root, p)) })) add('for-pr', message)
   }
+  const upstream = checkUpstream({ root, base: baseName, branch: branchName })
+  for (const message of upstream.errors) add('upstream', message)
   return { problems, branch, notes }
 }
 
@@ -136,7 +153,7 @@ export const evaluate = ({ root, data, branchName, base, staged = false, forPr =
 const commandBrief = async ({ root, data, args, out }) => {
   const id = args.positional[1]
   if (!id) return fail(out, 'Usage: pmo brief <step id> [--json] [--no-facts]')
-  const index = indexPlan(data.plan)
+  const index = indexPlan(data.pullRequests?.approvedPlan || data.plan, { pullRequests: data.pullRequests })
   const entry = index.steps.get(id)
   if (!entry) return fail(out, `Unknown step "${id}". Try: pmo list`)
   let facts
@@ -171,9 +188,13 @@ const commandStart = async ({ root, data, args, out }) => {
   if (!hasRef(root, base)) return fail(out, `Canonical base ${base} is unavailable; fetch it first.`)
   let canonical
   try { canonical = JSON.parse(showAt(root, base, PLAN_PATH)) } catch { return fail(out, `No readable plan on canonical base ${base}.`) }
-  const index = indexPlan(canonical)
+  const index = indexPlan(canonical, { pullRequests: data.pullRequests })
+  const prBlocks = readiness(index, id).blockers.filter((b) => b.kind === 'pull_request')
+  if (prBlocks.length) return fail(out, `Cannot start step ${id}: ${prBlocks.map((b) => `${b.id}: ${b.status}. ${b.reason || ''}`).join('; ')}`)
   const entry = index.steps.get(id)
   if (!entry) return fail(out, `Step ${id} is not on ${base}. Merge its plan change first.`)
+  const abandoned = orphanedWork(worktreeInventory({ root }), canonical)
+  if (abandoned.length) return fail(out, `uncommitted changes lack an open owning step: ${abandoned.map(tree => `${tree.branch} (${tree.path})`).join(', ')}. Resume and commit that work before starting another step; no recovery bundle is created.`)
   const owner = classifyBranch(currentBranch(root), project)
   const resume = owner.kind === 'step' && owner.stepId === id
   const preview = buildBrief({ index, id, catalog: data.catalog, project, guardrails: data.guardrails })
@@ -233,7 +254,7 @@ const commandHook = ({ root, data, args, out }) => {
 }
 
 const commandStatus = ({ root, data, out }) => {
-  const index = indexPlan(data.plan)
+  const index = indexPlan(data.pullRequests?.approvedPlan || data.plan, { pullRequests: data.pullRequests })
   const { overall, workstreams } = rollup(index)
   const branchName = currentBranch(root)
   const branch = classifyBranch(branchName, data.project)
@@ -252,7 +273,7 @@ const commandStatus = ({ root, data, out }) => {
 }
 
 const commandList = ({ data, args, out }) => {
-  const index = indexPlan(data.plan)
+  const index = indexPlan(data.pullRequests?.approvedPlan || data.plan, { pullRequests: data.pullRequests })
   const statusFilter = args.flags.status ? String(args.flags.status).split(',') : null
   const rows = []
   for (const entry of index.steps.values()) {
@@ -270,7 +291,7 @@ const commandList = ({ data, args, out }) => {
 }
 
 const commandNext = ({ data, args, out }) => {
-  const index = indexPlan(data.plan)
+  const index = indexPlan(data.pullRequests?.approvedPlan || data.plan, { pullRequests: data.pullRequests })
   const limit = Number.parseInt(args.flags.limit ?? '5', 10)
   const rows = args.flags.all ? rankOpenSteps(index, { includeBlocked: true }).slice(0, limit) : nextSteps(index, limit)
   out.log(`${pad('id', 8)}${pad('score', 7)}${pad('eff', 4)}${pad('risk', 8)}${pad('val', 5)}${pad('unblocks', 9)}title`)
@@ -299,7 +320,7 @@ const commandBuild = async ({ root, data, args, out }) => {
   writeFileSync(target, `${JSON.stringify(catalog, null, 2)}\n`)
   out.log(`wrote ${DATA}/catalog.generated.json (${catalog.counts.modules} modules, ${catalog.counts.built} built)`)
   if (args.flags.git) {
-    const live = buildLive({ root, catalog, project: data.project })
+    const live = { ...buildLive({ root, catalog, project: data.project }), pullRequests: data.pullRequests }
     const livePath = join(root, 'pmo/public/data/live.json')
     mkdirSync(dirname(livePath), { recursive: true })
     writeFileSync(livePath, `${JSON.stringify(live, null, 2)}\n`)
@@ -326,14 +347,54 @@ const HELP = `pmo - Program management
   validate [--fresh]                 Plan, guardrails (and catalog freshness)
   build [--git]                      Regenerate the catalog (and live git facts)
   hooks install                      Enable .githooks
+  upstream [status|check] [--verify-remote]  Verify content-bound upstream contributions
+  worktrees [--check]                Inspect unfinished local work without modifying it
+  finish                            Verify complete evidence, clean/pushed head and PR delivery
+  prs [sync|status]                  Refresh/show PR decisions and delivery
   agent [status|setup|prompt]        Configure the Ask the PMO Agent window (key stays in .env.local)
   plan template|add|set|remove|epic|workstream  Change the plan without hand-editing plan.json (plan/ branch; see pmo plan)`
 
 /** @returns {Promise<number>} exit code */
-export const run = async (argv, { root, out = console, prompt, jira, fetchImpl } = {}) => {
+export const run = async (argv, { root, out = console, prompt, jira, fetchImpl, prSync = syncPullRequests } = {}) => {
   const args = parseArgs(argv)
   const command = args.positional[0]
   const data = loadData(root)
+  if (['brief', 'start', 'next', 'list', 'status'].includes(command) || (command === 'build' && args.flags.git)) {
+    if (!process.env.CI && canSyncPrs(root, data.project)) data.pullRequests = prSync({ root, project: data.project, plan: data.plan })
+  }
+  if (command === 'prs') {
+    const action = args.positional[1] || 'status'
+    if (!['sync', 'status'].includes(action)) return fail(out, 'Usage: pmo prs [sync|status]')
+    const state = action === 'sync' ? prSync({ root, project: data.project, plan: data.plan }) : data.pullRequests
+    if (!state) return fail(out, 'No PR state. Run: npm run pmo -- prs sync')
+    out.log(`PR state: ${prStateFresh(state) ? 'verified sync' : 'unavailable or stale'} at ${state.checkedAt}`)
+    for (const pr of state.pullRequests) out.log(`#${pr.number} ${pr.kind} ${prStatus(pr, state)} ${pr.title}${pr.blocks.length ? ` | blocks ${pr.blocks.map((b) => b.id).join(', ')}` : ''}`)
+    if (state.error) out.error(state.error)
+    return prStateFresh(state) ? 0 : 1
+  }
+  if (command === 'upstream') {
+    const result = checkUpstream({ root, base: args.flags.base || `${data.project.remote}/${data.project.mainBranch}`, branch: args.flags.branch, verifyRemote: args.flags['verify-remote'] === true })
+    if (!result.configured) out.log('This is the PMO source or an unconfigured host; attached copies must record data/upstream.json.')
+    for (const error of result.errors) out.error(error)
+    if (result.configured) out.log(`${result.checked.length} changed PMO source file(s) checked; ${result.ok ? args.flags['verify-remote'] ? 'upstream verified' : 'receipt structure valid; remote not checked' : 'upstream contribution required'}.`)
+    return result.ok ? 0 : 1
+  }
+  if (command === 'worktrees') {
+    const state = worktreeInventory({ root })
+    for (const tree of state.worktrees) out.log(`${tree.available ? tree.dirty ? 'DIRTY' : 'clean' : 'unavailable'} | ${tree.branch} | ${tree.path}`)
+    out.log(`${state.stashes} stash(es). Resume or finish existing work; no files are deleted or bundled.`)
+    return args.flags.check && (state.stashes || state.worktrees.some(tree => !tree.available || tree.dirty)) ? 1 : 0
+  }
+  if (command === 'finish') {
+    const receipt = checkUpstream({ root, base: `${data.project.remote}/${data.project.mainBranch}`, verifyRemote: true })
+    const result = finishWork({ root, project: data.project, plan: data.plan })
+    const abandoned = orphanedWork(worktreeInventory({ root }), data.plan)
+    for (const tree of abandoned) result.errors.push(`Uncommitted work is stranded in ${tree.branch} (${tree.path}); finish or explicitly hand off that work.`)
+    result.ok = result.errors.length === 0
+    for (const error of [...receipt.errors, ...result.errors]) out.error(error)
+    out.log(`${result.branch}: ${result.delivery}${result.pullRequest ? ` (${result.pullRequest.url})` : ''}`)
+    return receipt.ok && result.ok ? 0 : 1
+  }
   const ctx = { root, data, args, out, prompt, jira, fetchImpl }
   switch (command) {
     case 'brief': return commandBrief(ctx)

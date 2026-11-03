@@ -5,8 +5,8 @@ import { initHost } from '../src/node/init.js'
 const here = fileURLToPath(new URL('.', import.meta.url))
 
 if (process.argv[2] === 'init') {
-  initHost(process.cwd())
-  process.exit(process.exitCode ?? 0)
+  const initialized = await initHost(process.cwd())
+  process.exit(initialized ? 0 : 1)
 }
 
 const { repoRoot } = await import('../src/node/git.js')

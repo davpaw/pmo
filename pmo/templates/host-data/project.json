@@ -1,0 +1,92 @@
+{
+  "name": "Project",
+  "repository": "",
+  "mainBranch": "main",
+  "remote": "origin",
+  "node": {
+    "min": "20.19.0",
+    "note": "vite 8 needs Node 20.19+ or 22.12+."
+  },
+  "install": "npm install",
+  "branching": {
+    "step": "^step/(\\d+\\.\\d+\\.\\d+)-([a-z0-9][a-z0-9-]{0,48})$",
+    "plan": "^plan/([a-z0-9][a-z0-9-]{0,48})$",
+    "release": "^release/([a-z0-9][a-z0-9.-]{0,48})$",
+    "protected": [
+      "main"
+    ],
+    "rules": [
+      "One step per branch: step/<id>-<slug>.",
+      "Approved scope and prerequisites come from configured main.",
+      "Generic PMO changes return to the source repository; project data stays here.",
+      "Commit, push, open a PR and run pmo finish before reporting implementation ready.",
+      "Never commit directly to main."
+    ]
+  },
+  "commit": {
+    "stepPrefix": "^\\[(\\d+\\.\\d+\\.\\d+)\\] \\S",
+    "planPrefix": "^plan: \\S",
+    "releasePrefix": "^release: \\S",
+    "example": "[1.1.1] Extract PMO into a standalone package",
+    "exempt": "^(Merge |Revert )"
+  },
+  "alwaysAllowedPaths": [
+    "pmo/data/plan.json",
+    "pmo/data/catalog.generated.json"
+  ],
+  "frozenPaths": [
+    {
+      "glob": ".env",
+      "reason": "Credentials stay local; use secret references, never committed values.",
+      "allowOnBranchKind": "none"
+    },
+    {
+      "glob": "**/dist/**",
+      "reason": "Generated output is not source.",
+      "allowOnBranchKind": "none"
+    }
+  ],
+  "sharedPaths": [],
+  "contractPaths": [],
+  "isolationExempt": [
+    "pmo/src/node/**",
+    "pmo/scripts/**"
+  ],
+  "validators": [
+    {
+      "id": "pmo-validate",
+      "run": "npm run pmo:validate",
+      "modules": [
+        "pmo"
+      ]
+    }
+  ],
+  "services": {
+    "pmo": {
+      "command": "npm run pmo:dev",
+      "port": 5299
+    }
+  },
+  "ports": {
+    "pmo": 5299,
+    "pmo-preview": 4299
+  },
+  "tests": {
+    "root": "npm test",
+    "package": "node --test pmo/src/*.test.js pmo/src/agent/*.test.js pmo/src/node/*.test.js pmo/src/ui/*.test.js",
+    "allPackages": "npm test"
+  },
+  "completion": {
+    "prChecklist": [
+      "Step status, evidence and completedAt are set in pmo/data/plan.json, with evidence paths that exist.",
+      "npm run pmo -- check --for-pr passes.",
+      "npm test passes; new behaviour has tests.",
+      "Every guardrail that applies is named in the description with how it is met.",
+      "New settings are in .env.example; no secret is committed or sent to the browser.",
+      "UI changes were exercised, or the description says they were not."
+    ]
+  },
+  "pmo": {
+    "directory": "pmo"
+  }
+}

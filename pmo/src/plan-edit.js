@@ -44,7 +44,7 @@ export const TEMPLATE_HINTS = Object.freeze([
 /** Keys written on the first two lines of a step, in this order. The rest follow one to a line. */
 const HEAD = ['id', 'title', 'summary']
 const STATE = ['status', 'kind', 'modules', 'dependsOn']
-const TAIL = ['scope', 'effort', 'risk', 'value', 'externalDeps', 'tags', 'questions', 'tasks', 'env', 'acceptance']
+const TAIL = ['requiresPullRequests', 'dismissedPullRequests', 'scope', 'effort', 'risk', 'value', 'externalDeps', 'tags', 'questions', 'tasks', 'env', 'acceptance']
 const DROP_WHEN_EMPTY = ['dependsOn', 'tags', 'questions', 'tasks', 'externalDeps']
 
 const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v)

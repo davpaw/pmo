@@ -179,3 +179,8 @@ body[data-agent='min'] { padding-bottom: 0; }
 }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.repository-facts dd { min-width: 0; overflow-wrap: anywhere; }
+.claim-branches { margin: 0; padding-left: var(--space-3); }
+.claim-branches li { margin-bottom: var(--space-1); }
+.claim-branches code { white-space: normal; overflow-wrap: anywhere; }

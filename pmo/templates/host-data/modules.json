@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "note": "Project-owned module declarations; extend on a plan branch.",
+  "modules": {
+    "pmo": {
+      "title": "PMO",
+      "summary": "Program management tooling attached to this repository.",
+      "kind": "tooling",
+      "maturity": "pilot-grade",
+      "owns": [
+        "pmo/**"
+      ],
+      "tags": [
+        "tooling"
+      ]
+    }
+  }
+}

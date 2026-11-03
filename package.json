@@ -11,9 +11,27 @@
     "pmo:dev": "node pmo/scripts/pmo.mjs build --git && node pmo/scripts/run-vite.mjs dev",
     "pmo:preview": "node pmo/scripts/run-vite.mjs preview",
     "test": "node --test pmo/src/*.test.js pmo/src/agent/*.test.js pmo/src/node/*.test.js pmo/src/ui/*.test.js",
-    "build": "vite build"
+    "build": "node pmo/scripts/pmo.mjs build --git && vite build pmo"
   },
-  "devDependencies": {
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davpaw/pmo.git"
+  },
+  "bin": {
+    "pmo": "pmo/scripts/pmo.mjs"
+  },
+  "files": [
+    "pmo/src/",
+    "pmo/scripts/",
+    "pmo/templates/",
+    "pmo/package.json",
+    "pmo/AGENTS.md",
+    "pmo/CONTRIBUTING.md",
+    "pmo/index.html",
+    "pmo/vite.config.js",
+    "README.md"
+  ],
+  "dependencies": {
     "vite": "^8.2.0"
   }
 }
