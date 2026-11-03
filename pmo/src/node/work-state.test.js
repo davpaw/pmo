@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { finishWork } from './work-state.js'
 const HEAD='a'.repeat(40),MERGE='b'.repeat(40)
-const plan={workstreams:[{epics:[{steps:[{id:'1.1.2',status:'complete',completedAt:'2026-11-03',evidence:['pmo/package.json']}]}]}]}
+const plan={workstreams:[{epics:[{steps:[{id:'1.1.2',status:'complete',completedAt:'2026-11-03',evidence:['package.json']}]}]}]}
 const fixture=(changes={})=>({root:process.cwd(),project:{repository:'owner/pmo',remote:'origin',mainBranch:'main'},plan,run:(args)=>args[0]==='status'?changes.dirty?' M file':'' : args[0]==='merge-base'?changes.unmerged?null:'' : args.includes('--abbrev-ref')?'step/1.1.2-work':args.includes('--verify')?changes.unpushed?'c'.repeat(40):HEAD:HEAD,getPullRequests:()=>changes.noPr?[]:[{number:2,url:'https://github.com/owner/pmo/pull/2',headRefOid:HEAD,state:changes.merged?'MERGED':'OPEN',baseRefName:changes.wrongBase?'plan/scope':'main',mergeCommit:{oid:MERGE}}]})
 test('finish distinguishes review pending from main delivery and fails dirty, unpushed and PR-less work',()=>{
  assert.equal(finishWork(fixture()).delivery,'awaiting review / merge')

@@ -39,3 +39,9 @@ test('first import requires byte-identical content and an upstream revision reac
  assert.equal(checkUpstream({...o,verifyRemote:true,verifyRevision:()=>false,getSourceFile:()=>Buffer.from('new')}).ok,false)
  assert.equal(checkUpstream({...o,verifyRemote:true,verifyRevision:()=>true,getSourceFile:()=>Buffer.from('other')}).ok,false)
 })
+
+test('executable files under data remain source and cannot evade contribution checks',t=>{
+ const o=setup(t)
+ mkdirSync(join(o.root,'pmo/data'),{recursive:true});writeFileSync(join(o.root,'pmo/data/policy.js'),'export default true')
+ assert.equal(checkUpstream({...o,changed:['pmo/data/policy.js']}).ok,false)
+})
