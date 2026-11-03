@@ -37,6 +37,16 @@
               "evidence": [
                 "pmo/package.json"
               ]
+            },
+            {
+              "id": "1.1.2", "title": "Upstream reusable host improvements and enforce contribution lifecycle", "summary": "Bring reusable PR delivery tracking, repository freshness, claim readability and import hardening back from attached hosts. Establish upstream provenance, contribution receipts and finish-time checks so generic PMO changes return to this source repository and work is committed, pushed and linked to PRs rather than stranded in worktrees.",
+              "status": "roadmap", "kind": "build", "modules": ["pmo"],
+              "scope": { "extra": ["AGENTS.md", "README.md", "package.json", ".github/**"] },
+              "effort": { "size": "XL" },
+              "risk": { "level": "medium", "notes": "The source repository is public. Export reusable tooling only; never copy a managed project's plan, credentials, runtime caches, business contracts or recovery artifacts. Preserve generic host ownership and local UI helpers." },
+              "value": { "score": 5, "why": "Keeps PMO improvements available to every managed project and prevents silent divergence and abandoned local work." },
+              "tasks": ["Port generic PR prerequisite/delivery state, repository refresh and grouped claim presentation with generic fixtures and standalone UI imports", "Port computed import scanning and canonical readiness checks without HigherEd ownership assumptions", "Add upstream provenance and receipts: generic changes need a merged upstream contribution covering current content; host-only exceptions are explicit and reviewed", "Add read-only worktree inventory and finish checks for clean committed work, matching pushed head and a PR with explicit delivery state; do not create recovery bundles as normal workflow", "Document the upstream-first development loop for every agent and prevent host data from entering distributions or exports", "Add repeatable offline tests, self-host validation and CI for the PMO product"],
+              "acceptance": ["Generic PR tracking, repository refresh and readable active/historical claims work without any HigherEd package or data", "Generic changes in an attached PMO fail contribution checks without valid content-bound upstream evidence; declared host-only paths require an explicit reason", "Finish checks detect dirty, unpushed and PR-less work and report review versus verified-main delivery distinctly", "Attachment/export excludes managed-project plans, secrets, live data, caches and recovery archives", "Standalone tests, build, plan validation and scope checks pass and the implementation is merged to PMO main"]
             }
           ]
         }
