@@ -308,7 +308,13 @@
                 "Implement bounded server-side host scanner and read-only same-origin endpoints.",
                 "Wire PMO Agent local commands, tab navigation, selectable overlays and refresh.",
                 "Document evidence limits and host metadata; test and exercise the UI."
-              ]
+              ],
+              "scope": {
+                "extra": [
+                  "package.json"
+                ],
+                "reason": "The root install used by CI and the published wrapper must include the same React Flow viewer and TypeScript scanner runtime dependencies as the standalone pmo package."
+              }
             }
           ]
         }
