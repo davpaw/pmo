@@ -37,12 +37,18 @@ export const syncPullRequests = ({ root, project, plan, now = () => new Date().t
     const required = new Set(snapshot.pullRequests.map((p) => p.number))
     for (const w of plan.workstreams) for (const e of w.epics) for (const s of e.steps) for (const ref of s.requiresPullRequests || []) if (!ref.repository || ref.repository === project.repository) required.add(ref.number)
     for (const number of required) if (!prs.has(number)) prs.set(number, gh(['pr', 'view', String(number), '--repo', project.repository, '--json', fields]))
+    const superseded = new Set()
+    for (const w of approved.workstreams) for (const e of w.epics) for (const s of e.steps) for (const ref of s.dismissedPullRequests || []) if (!ref.repository || ref.repository === project.repository) superseded.add(ref.number)
     snapshot.pullRequests = [...prs.values()].map((raw) => {
       const prior = previous?.pullRequests.find((p) => p.number === raw.number)
       const stepId = /^step\/(\d+\.\d+\.\d+)-/.exec(raw.headRefName || '')?.[1] || null
       const pr = { number: raw.number, title: raw.title, state: raw.state, draft: raw.isDraft, reviewDecision: raw.reviewDecision, kind: raw.headRefName?.startsWith('plan/') ? 'plan' : stepId ? 'delivery' : 'other', stepId, blocks: prior?.blocks || [], mergeVerified: false }
       const mergeOid = raw.mergeCommit?.oid
-      if (raw.state === 'MERGED' && raw.baseRefName === project.mainBranch && oid(mergeOid)) pr.mergeVerified = runGit(['merge-base', '--is-ancestor', mergeOid, main], { allowFail: true }) !== null
+      const inMain = (commit) => runGit(['merge-base', '--is-ancestor', commit, main], { allowFail: true }) !== null
+      if (raw.state === 'MERGED' && raw.baseRefName === project.mainBranch && oid(mergeOid)) pr.mergeVerified = inMain(mergeOid)
+      // A merge into a stacked base is delivered once the PR's own head commit is in main,
+      // or when a step in the approved plan on main records a reviewed supersession.
+      else if (raw.state === 'MERGED') pr.mergeVerified = (oid(raw.headRefOid) && inMain(raw.headRefOid)) || superseded.has(raw.number)
       if (pr.kind === 'plan' && (raw.state === 'OPEN' || (!prior && !pr.mergeVerified))) {
         try {
           if (!oid(raw.headRefOid) || !oid(raw.baseRefOid)) throw Error('refs')

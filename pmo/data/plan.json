@@ -381,14 +381,43 @@
               ]
             },
             {
-              "id": "6.1.10", "title": "Count a PR merged into a stacked base as delivered once its content reached main", "summary": "The PMO marks a merged PR as verified only when it targeted main and its merge commit is an ancestor of main. A PR merged into a stacked base is never verified, so it stays in the waiting queue as Merged; main verification pending although its content may already be on main. Verify such a PR when its head commit is an ancestor of main, or when a step in the approved plan on main dismisses it with a reviewed reason.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"],
-              "effort": { "size": "S" },
-              "risk": { "level": "low", "notes": "Changes only how a merged PR is classified in the local PR snapshot; it cannot clear an open PR or a prerequisite that is not merged. A supersession needs a reviewed reason in the plan on main. Generic source change: contributed upstream first, then recorded as a receipt (G-033)." },
-              "value": { "score": 3, "why": "Delivered work stays in the waiting queue, which hides PRs that really need review or merge." },
-              "tags": ["pmo", "pull-requests"],
-              "tasks": ["Change syncPullRequests in pmo/src/node/pull-requests.js", "Add tests in pmo/src/node/pull-requests.test.js"],
-              "acceptance": ["A merged PR whose base is not main, and whose head commit is in main, is verified", "A merged PR with a head not in main stays pending unless the approved plan on main dismisses it with a reason", "An open or closed PR is never verified by this rule"]
+              "id": "6.1.10",
+              "title": "Count a PR merged into a stacked base as delivered once its content reached main",
+              "summary": "The PMO marks a merged PR as verified only when it targeted main and its merge commit is an ancestor of main. A PR merged into a stacked base is never verified, so it stays in the waiting queue as Merged; main verification pending although its content may already be on main. Verify such a PR when its head commit is an ancestor of main, or when a step in the approved plan on main dismisses it with a reviewed reason.",
+              "status": "complete",
+              "kind": "build",
+              "modules": [
+                "pmo"
+              ],
+              "effort": {
+                "size": "S"
+              },
+              "risk": {
+                "level": "low",
+                "notes": "Changes only how a merged PR is classified in the local PR snapshot; it cannot clear an open PR or a prerequisite that is not merged. A supersession needs a reviewed reason in the plan on main. Generic source change: contributed upstream first, then recorded as a receipt (G-033)."
+              },
+              "value": {
+                "score": 3,
+                "why": "Delivered work stays in the waiting queue, which hides PRs that really need review or merge."
+              },
+              "tags": [
+                "pmo",
+                "pull-requests"
+              ],
+              "tasks": [
+                "Change syncPullRequests in pmo/src/node/pull-requests.js",
+                "Add tests in pmo/src/node/pull-requests.test.js"
+              ],
+              "acceptance": [
+                "A merged PR whose base is not main, and whose head commit is in main, is verified",
+                "A merged PR with a head not in main stays pending unless the approved plan on main dismisses it with a reason",
+                "An open or closed PR is never verified by this rule"
+              ],
+              "evidence": [
+                "pmo/src/node/pull-requests.js",
+                "pmo/src/node/pull-requests.test.js"
+              ],
+              "completedAt": "2026-11-04"
             }
           ]
         }

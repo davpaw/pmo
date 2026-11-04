@@ -30,9 +30,40 @@ test('discovers plan changes, delivery and main-verified merges through read-onl
 })
 test('GitHub MERGED alone and merges into a different base cannot clear a prerequisite', () => {
   for (const options of [{ merged: false }, { merged: true }]) {
-    const result = syncPullRequests({ ...setup(options), gh: () => [raw(1, { state: 'MERGED', baseRefName: options.merged ? 'step/other' : 'main', mergeCommit: { oid: MERGE } })] })
-    assert.equal(result.pullRequests[0].mergeVerified, false)
+    const result = syncPullRequests({ ...setup(options), gh: () => [raw(1, { state: 'MERGED', baseRefName: 'main', mergeCommit: { oid: MERGE } })] })
+    assert.equal(result.pullRequests[0].mergeVerified, options.merged)
   }
+  const result = syncPullRequests({ ...setup({ merged: false }), gh: () => [raw(1, { state: 'MERGED', baseRefName: 'step/other', mergeCommit: { oid: MERGE } })] })
+  assert.equal(result.pullRequests[0].mergeVerified, false)
+})
+const stacked = (number, extra = {}) => raw(number, { state: 'MERGED', headRefName: 'step/1.1.1-code', baseRefName: 'step/other', mergeCommit: { oid: MERGE }, ...extra })
+const stackedSetup = ({ inMain = [], approved = plan } = {}) => ({
+  ...setup(),
+  runGit: (args, options) => {
+    if (args[0] === 'merge-base' && args.includes('--is-ancestor')) return inMain.includes(args[2]) ? '' : null
+    if (args[0] === 'show' && args[1].startsWith(MAIN)) return JSON.stringify(approved)
+    return setup().runGit(args, options)
+  },
+})
+test('a PR merged into a stacked base is verified once its head commit is in main', () => {
+  const result = syncPullRequests({ ...stackedSetup({ inMain: [HEAD] }), gh: () => [stacked(1)] })
+  assert.equal(result.pullRequests[0].mergeVerified, true)
+})
+test('a PR merged into a stacked base stays pending while its head commit is not in main', () => {
+  const result = syncPullRequests({ ...stackedSetup({ inMain: [MERGE] }), gh: () => [stacked(1)] })
+  assert.equal(result.pullRequests[0].mergeVerified, false)
+})
+test('a PR merged into a stacked base is verified when the approved plan on main dismisses it with a reason', () => {
+  const approved = structuredClone(plan)
+  approved.workstreams[0].epics[0].steps[0].dismissedPullRequests = [{ number: 1, reason: 'Superseded by a recovery PR' }, { number: 3, repository: 'other/repo', reason: 'Belongs to another repository' }]
+  const result = syncPullRequests({ ...stackedSetup({ approved }), gh: () => [stacked(1), stacked(2), stacked(3)] })
+  assert.deepEqual(result.pullRequests.map((p) => p.mergeVerified), [true, false, false])
+})
+test('an open or closed PR is never verified by head ancestry or a plan dismissal', () => {
+  const approved = structuredClone(plan)
+  approved.workstreams[0].epics[0].steps[0].dismissedPullRequests = [{ number: 1, reason: 'Superseded by a recovery PR' }, { number: 2, reason: 'Withdrawn by the owner' }]
+  const result = syncPullRequests({ ...stackedSetup({ inMain: [HEAD], approved }), gh: () => [stacked(1, { state: 'OPEN' }), stacked(2, { state: 'CLOSED' })] })
+  assert.deepEqual(result.pullRequests.map((p) => p.mergeVerified), [false, false])
 })
 test('auth or network failure preserves known blockers and exposes no command error or credentials', () => {
   const prior = syncPullRequests({ ...setup(), gh: () => [raw(1)] })
