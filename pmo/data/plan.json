@@ -264,6 +264,53 @@
               }
             }
           ]
+        },
+        {
+          "id": "4.2",
+          "title": "Application architecture",
+          "summary": "Evidence-based logical diagrams of the managed application.",
+          "steps": [
+            {
+              "id": "4.2.1",
+              "title": "Add refreshable logical application flow chart",
+              "summary": "Reuse the scheduler React Flow viewer in a new Logical architecture tab opened from the PMO Agent. Scan the managed repository on demand and refresh to reflect current modules, connections, dependencies, services, persistence, integrations and security evidence. See docs/logical-architecture.md.",
+              "status": "roadmap",
+              "kind": "build",
+              "modules": [
+                "pmo"
+              ],
+              "dependsOn": [],
+              "effort": {
+                "size": "L"
+              },
+              "risk": {
+                "level": "medium",
+                "notes": "Static analysis is incomplete; distinguish observations, declarations and unknowns. Bound scanning, exclude secrets and symlinks, and never execute application code. React Flow is isolated to the diagram tab."
+              },
+              "value": {
+                "score": 5,
+                "why": "Keep an inspectable architecture view accurate as the managed application evolves."
+              },
+              "acceptance": [
+                "PMO Agent show/open logical flow chart and refresh logical flow chart commands open or update a new Logical architecture tab without a model call.",
+                "Reuse scheduler React Flow canvas conventions, connection renderer, pan/zoom, controls, minimap and selection inspector with documented provenance.",
+                "Modules, declared dependencies and observed module connections are visible by default with distinct relationship labels.",
+                "Selectable overlays show services offered/called, persistence layers and locations, integrations, security, evidence, planned modules and external package dependencies.",
+                "Every node and connection exposes security in transit and at rest, security type and key length, with unknown values explicitly labelled and evidence attached to any reported value.",
+                "Refresh rescans current host module declarations and source files; added, changed and removed resources and connections are redrawn without losing selected overlays.",
+                "Scanner excludes secrets, ignored files, binary files and paths outside the host root; no source execution or raw source/credential disclosure.",
+                "Tests cover scanner changes/deletions, module edges, optional layers, security unknowns, containment, redaction, agent commands, refresh errors and safe rendering; build and browser smoke checks are recorded."
+              ],
+              "questions": [],
+              "tasks": [
+                "Define and validate versioned graph and optional architecture declarations.",
+                "Extract/adapt scheduler viewer into an isolated PMO React mount.",
+                "Implement bounded server-side host scanner and read-only same-origin endpoints.",
+                "Wire PMO Agent local commands, tab navigation, selectable overlays and refresh.",
+                "Document evidence limits and host metadata; test and exercise the UI."
+              ]
+            }
+          ]
         }
       ]
     },
