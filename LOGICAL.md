@@ -1,0 +1,3 @@
+# PMO - Logical Architecture Diagran Documentation
+
+Use the flow chart viewer from /Users/DP/projects/scheduler.  Build a logical flow chart of the PMO-managed application on demand, as a new tab, from the PMO Agent.  Show modules, their connections, dependencies as default. Add services called/offered, persistence layers and locations, integrations and security at every level (in transit, on-disk, security type, key length).  These and other options should be selectable.  As the PMO-managed application grows, a refresh command to the PMO agent should scan and redraw a newly accurate diagram.
