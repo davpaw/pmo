@@ -15,7 +15,11 @@ import project from '../data/project.json'
 import { indexPlan } from './plan.js'
 import { DEFAULT_UI, NAV, pageTitle, parseRoute, renderRoute } from './views.js'
 import { mountAgentPanel } from './agent-panel.js'
+import { createArchitectureClient } from './architecture/client.js'
 
+const architecture = createArchitectureClient()
+let unmountArchitecture = null
+let renderVersion = 0
 const app = document.querySelector('#app')
 const ui = DEFAULT_UI()
 const ctx = { plan, index: indexPlan(plan), catalog, guardrails, project, live: null, hostname: window.location.hostname }
@@ -33,7 +37,16 @@ const render = () => {
   const focusKey = active?.dataset?.filter
   const caret = active?.selectionStart
   const route = parseRoute(window.location.hash)
+  unmountArchitecture?.()
+  unmountArchitecture = null
   app.innerHTML = toHtml(frame(route))
+  const version = ++renderVersion
+  if (route.name === 'architecture') {
+    const host = app.querySelector('#architecture-view')
+    import('./architecture/viewer.jsx').then(({ mountArchitecture }) => {
+      if (version === renderVersion && host.isConnected) unmountArchitecture = mountArchitecture(host, architecture)
+    }).catch(() => { if (version === renderVersion && host.isConnected) host.textContent = 'The architecture viewer could not load. Reload this page to retry.' })
+  }
   document.title = `${pageTitle(route)} - PMO`
   if (focusKey) {
     const next = app.querySelector(`[data-filter="${focusKey}"]`)
@@ -78,7 +91,10 @@ render()
 
 // The agent window sits outside #app so route changes do not clear the conversation.
 const agentHost = document.querySelector('#agent')
-if (agentHost) mountAgentPanel(agentHost)
+if (agentHost) mountAgentPanel(agentHost, { onArchitecture: async (command) => {
+  window.location.hash = '#/architecture'
+  await architecture.load(command === 'refresh')
+} })
 
 // Live facts are optional; the app is fully usable without them.
 fetch('/data/live.json', { cache: 'no-store' })

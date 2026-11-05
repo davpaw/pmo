@@ -19,6 +19,7 @@ const RISK_TONE = { low: 'ok', medium: 'warn', high: 'danger' }
 export const NAV = [
   ['overview', 'Overview'],
   ['modules', 'Modules'],
+  ['architecture', 'Logical architecture'],
   ['roadmap', 'Roadmap'],
   ['decisions', 'Decisions'],
   ['guardrails', 'Guardrails'],
@@ -311,6 +312,7 @@ export const DEFAULT_UI = () => ({
 /** @param {{ name: string, arg?: string }} route */
 export const renderRoute = (route, ctx, ui) => {
   switch (route.name) {
+    case 'architecture': return html`<div id="architecture-view" aria-label="Logical architecture"><h2>Logical architecture</h2><p>Loading the application diagram. Modules and dependencies appear first; select additional layers for services, persistence, integrations and security.</p></div>`
     case 'modules': return route.arg ? moduleDetail(ctx, route.arg) : modulesView(ctx, ui)
     case 'roadmap': return roadmapView(ctx, ui)
     case 'decisions': return decisionsView(ctx, ui)

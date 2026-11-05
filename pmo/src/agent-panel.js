@@ -5,8 +5,11 @@
  */
 
 import { html, toHtml } from './ui/index.js'
+import { architectureCommand } from './architecture/graph.js'
 
 export const SUGGESTIONS = [
+  'Show logical flow chart',
+  'Refresh logical flow chart',
   'What should I work on next, and why?',
   'How do I start step 1.1.3?',
   'I want to add a new capability. Which route do I follow?',
@@ -30,6 +33,7 @@ const setupHelp = (status) => html`<div class="agent-setup" role="note">
   ${status?.configured
     ? html`<p><strong>${status.usable ? 'The key could not be checked just now.' : 'The model did not accept these settings.'}</strong> The server asks the model a tiny question before showing Ready.</p>`
     : html`<p><strong>The agent needs a model.</strong> Keys and tokens are read by the server from <code>.env.local</code> and never reach the browser.</p>`}
+  <p>Show or refresh the logical flow chart without model setup.</p>
   <p>Run <code>npm run pmo -- agent setup</code>. It asks which provider to use (a model API directly, or AIRouter), then the model, key or token and address, and writes <code>.env.local</code>. No restart is needed.</p>
   ${status?.issues?.length ? html`<ul>${status.issues.map((issue) => html`<li>${issue}</li>`)}</ul>` : ''}
 </div>`
@@ -61,8 +65,8 @@ export const renderPanel = (state) => state.minimized ? html`<section class="age
     ${state.status && !state.status.ready ? setupHelp(state.status) : ''}
     <form class="agent-form" data-agent-form>
       <label class="visually-hidden" for="agent-input">Question for the PMO Agent</label>
-      <textarea id="agent-input" class="agent-input" rows="2" maxlength="4000" placeholder="Ask the PMO Agent" data-agent-input ${state.status?.usable ? '' : html`disabled`}>${state.draft}</textarea>
-      <button type="submit" class="button" ${state.busy || !state.status?.usable ? html`disabled` : ''}>Ask</button>
+      <textarea id="agent-input" class="agent-input" rows="2" maxlength="4000" placeholder="Ask the PMO Agent" data-agent-input>${state.draft}</textarea>
+      <button type="submit" class="button" ${state.busy ? html`disabled` : ''}>Ask</button>
     </form>
     <p class="muted agent-note">The agent's rules are fixed on the server. Nothing typed here can change them.</p>
   </div>
@@ -74,7 +78,7 @@ const errorText = (body, status) => (typeof body?.error === 'string' ? body.erro
  * Mounts the panel into `host`. `fetchImpl` and `getRoute` are injectable for tests.
  * @returns {{ state: object, ask: (text: string) => Promise<void>, refreshStatus: () => Promise<void> }}
  */
-export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args), getRoute = () => window.location.hash, doc = document } = {}) => {
+export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args), getRoute = () => window.location.hash, doc = document, onArchitecture = null } = {}) => {
   const state = initialState()
   try { state.minimized = localStorage.getItem(MIN_KEY) === '1' } catch { /* not remembered */ }
   const render = () => {
@@ -104,11 +108,24 @@ export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args),
 
   const ask = async (text) => {
     const question = String(text ?? '').trim()
-    if (!question || state.busy || !state.status?.usable) return
+    if (!question || state.busy) return
+    const command = architectureCommand(question)
+    if (!command && !state.status?.usable) {
+      state.messages.push({ role: 'agent', text: 'Model setup is needed for questions. You can still show or refresh the logical flow chart.', error: true })
+      render(); return
+    }
     state.messages.push({ role: 'user', text: question })
     state.draft = ''
     state.busy = true
     render()
+    if (command) {
+      try {
+        if (!onArchitecture) throw Error('The architecture viewer is not available here.')
+        await onArchitecture(command)
+        state.messages.push({ role: 'agent', text: command === 'refresh' ? 'Rescanned the application and refreshed the Logical architecture tab.' : 'Opened the Logical architecture tab. Select layers or inspect a node or connection.' })
+      } catch (error) { state.messages.push({ role: 'agent', text: error.message, error: true }) }
+      state.busy = false; render(); return
+    }
     let rejected = false
     try {
       const { response, json } = await post('/api/agent/ask', { sessionId: state.sessionId, message: question, route: getRoute() })

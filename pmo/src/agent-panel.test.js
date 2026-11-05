@@ -16,11 +16,11 @@ test('panel: a collapsed bar at the bottom with a toggle that reports its state'
   assert.match(render({ open: true, status: ok }), /aria-expanded="true"/)
 })
 
-test('panel: without a model it explains setup and disables asking', () => {
+test('panel: without a model it explains setup and allows local architecture commands', () => {
   const out = render({ open: true, status: { configured: false, issues: ['No model is set. Run: npm run pmo -- agent setup'] } })
   assert.match(out, /npm run pmo -- agent setup/)
   assert.match(out, /Not set up/)
-  assert.match(out, /data-agent-input[^>]*disabled/)
+  assert.doesNotMatch(out, /data-agent-input[^>]*disabled/)
 })
 
 test('panel: with a ready model it offers starter questions and nothing is disabled', () => {
@@ -31,13 +31,13 @@ test('panel: with a ready model it offers starter questions and nothing is disab
   assert.match(out, /Nothing typed here can change them/)
 })
 
-test('panel: a key the model rejected is not Ready and asking is disabled', () => {
+test('panel: a rejected key is not Ready but local commands remain available', () => {
   const out = render({ open: true, status: { configured: true, ready: false, usable: false, state: 'rejected', model: 'm', issues: ['The model rejected the key or token. Run: npm run pmo -- agent setup'] } })
   assert.match(out, /Key rejected/)
   assert.ok(!/chip-ok/.test(out))
   assert.match(out, /did not accept these settings/)
   assert.match(out, /npm run pmo -- agent setup/)
-  assert.match(out, /data-agent-input[^>]*disabled/)
+  assert.doesNotMatch(out, /data-agent-input[^>]*disabled/)
   assert.match(render({ status: { configured: true, ready: false, usable: false, state: 'not_found', model: 'm', issues: [] } }), /Model not found/)
 })
 
