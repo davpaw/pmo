@@ -26,9 +26,14 @@
     "AGENTS.md",
     "CONTRIBUTING.md",
     "index.html",
-    "vite.config.js"
+    "vite.config.js",
+    "docs/"
   ],
   "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "reactflow": "^11.11.4",
+    "typescript": "^6.0.2",
     "vite": "^8.2.0"
   },
   "license": "UNLICENSED",

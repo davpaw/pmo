@@ -29,9 +29,14 @@
     "pmo/CONTRIBUTING.md",
     "pmo/index.html",
     "pmo/vite.config.js",
-    "README.md"
+    "README.md",
+    "pmo/docs/"
   ],
   "dependencies": {
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "reactflow": "^11.11.4",
+    "typescript": "^6.0.2"
   }
 }

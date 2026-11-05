@@ -274,7 +274,7 @@
               "id": "4.2.1",
               "title": "Add refreshable logical application flow chart",
               "summary": "Reuse the scheduler React Flow viewer in a new Logical architecture tab opened from the PMO Agent. Scan the managed repository on demand and refresh to reflect current modules, connections, dependencies, services, persistence, integrations and security evidence. See docs/logical-architecture.md.",
-              "status": "roadmap",
+              "status": "complete",
               "kind": "build",
               "modules": [
                 "pmo"
@@ -314,7 +314,19 @@
                   "package.json"
                 ],
                 "reason": "The root install used by CI and the published wrapper must include the same React Flow viewer and TypeScript scanner runtime dependencies as the standalone pmo package."
-              }
+              },
+              "completedAt": "2026-11-04",
+              "evidence": [
+                "pmo/src/architecture/viewer.jsx",
+                "pmo/src/architecture/FlowEdge.tsx",
+                "pmo/src/node/architecture-scan.js",
+                "pmo/src/node/architecture-scan.test.js",
+                "pmo/src/node/architecture-http.test.js",
+                "pmo/src/architecture.test.js",
+                "pmo/docs/logical-architecture.md",
+                "pmo/docs/logical-architecture-verification.md"
+              ],
+              "notes": "Implemented read-only on-demand architecture tab and local PMO Agent show/refresh commands. Static JS/TS observations and public host metadata retain provenance and unknown security values. Root-only install passed 224 tests, production build and validation; production browser verified layer controls, node inspection, navigation and source add/edit/delete refresh. Implementation PR awaits review/merge."
             }
           ]
         }

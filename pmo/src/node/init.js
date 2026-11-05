@@ -6,7 +6,7 @@ import { git } from './git.js'
 import { buildCatalog } from './catalog-build.js'
 import { fileDigest } from './upstream.js'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const COPY = ['src','scripts','templates','index.html','vite.config.js','package.json','AGENTS.md','CONTRIBUTING.md']
+const COPY = ['src','scripts','docs','templates','index.html','vite.config.js','package.json','AGENTS.md','CONTRIBUTING.md']
 const walk = (folder, prefix='') => readdirSync(folder,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?walk(join(folder,entry.name),`${prefix}${entry.name}/`):[`${prefix}${entry.name}`])
 export const sourceRevision = () => {
   for (const path of [join(packageRoot,'package.json'),join(packageRoot,'../package.json')]) {

@@ -1,0 +1,24 @@
+.architecture { --arch-border: #b9c7d8; }
+.architecture-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.architecture-heading h2 { margin-bottom: 6px; }
+.architecture-options { display: flex; flex-wrap: wrap; gap: 12px 20px; padding: 16px 0; }
+.architecture-options label { display: flex; align-items: center; gap: 6px; }
+.architecture-options input { width: auto; }
+.architecture-filters { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 14px; }
+.architecture-filters label { display: grid; gap: 6px; }
+.architecture-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 300px; border: 1px solid var(--arch-border); border-radius: 10px; overflow: hidden; }
+.architecture-canvas { height: 630px; background: #f1f5fa; color: #1c2a40; min-width: 0; }
+.architecture-node { width: 235px; padding: 14px; border: 2px solid; border-radius: 9px; background: white; color: #1c2a40; box-shadow: 0 3px 10px #22324a15; }
+.architecture-node strong, .architecture-node small { display: block; overflow-wrap: anywhere; margin-top: 5px; }
+.architecture-kind { text-transform: uppercase; font-size: 9px; letter-spacing: .05em; }
+.architecture-node small { font-size: 10px; line-height: 1.4; }
+.architecture .react-flow__node.selected .architecture-node { outline: 3px solid #4888d3; outline-offset: 3px; }
+.architecture-inspector { padding: 20px; overflow-wrap: anywhere; overflow-y: auto; max-height: 630px; border-left: 1px solid var(--arch-border); }
+.architecture-inspector h3 { margin-top: 0; }
+.architecture-security { white-space: pre-line; }
+.architecture-error { border-left: 4px solid #bb4854; padding: 12px; }
+.architecture details { margin-top: 16px; }
+.architecture .designer-edge-label { position: absolute; pointer-events: none; background: #fff; color: #283950; border: 1px solid #c5d0dc; border-radius: 4px; padding: 3px 6px; font-size: 9px; max-width: 220px; overflow-wrap: anywhere; }
+.architecture .designer-edge-label-yes { border-color: #2fb380; }
+.architecture .react-flow__controls button { color: #172439; background: white; border-radius: 0; }
+@media (max-width: 850px) { .architecture-workspace { grid-template-columns: 1fr; } .architecture-inspector { border-left: 0; border-top: 1px solid var(--arch-border); max-height: 350px; } .architecture-canvas { height: 480px; } }
