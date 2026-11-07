@@ -14,6 +14,7 @@
 import { createAgentService } from '../agent/service.js'
 import { resolveAgentConfig } from '../agent/config.js'
 import { loadAgentEnv, loadKnowledge } from './agent-sources.js'
+import { createEntityService, runEntityScan } from './entity-http.js'
 
 const MAX_BODY = 16 * 1024
 
@@ -59,7 +60,9 @@ export const createAgentMiddleware = ({ service }) => async (req, res, next) => 
     if (!/^application\/json\b/i.test(req.headers['content-type'] ?? '')) return send(res, 415, { ok: false, error: 'Send application/json.' })
     const body = await readBody(req)
     if (path === '/api/agent/ask') {
-      const result = await service.ask({ sessionId: body.sessionId, message: body.message, route: body.route })
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['sessionId', 'message', 'route', 'entityContext'].includes(k))) return send(res, 400, { ok: false, error: 'Send only message/session/route and stable entity context ids.' })
+      if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress) || !/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(req.headers.host || '')) return send(res, 403, { ok: false, error: 'PMO questions and entity context are local only.' })
+      const result = await service.ask({ sessionId: body.sessionId, message: body.message, route: body.route, entityContext: body.entityContext })
       return send(res, result.ok ? 200 : result.status ?? 500, result)
     }
     if (path === '/api/agent/reset') return send(res, 200, service.reset(body.sessionId))
@@ -70,10 +73,11 @@ export const createAgentMiddleware = ({ service }) => async (req, res, next) => 
 }
 
 /** A Vite plugin that serves the agent from the dev and preview servers. */
-export const pmoAgentPlugin = ({ root }) => {
+export const pmoAgentPlugin = ({ root, entityService = createEntityService({ scan: () => runEntityScan(root) }) }) => {
   const service = createAgentService({
     getConfig: () => resolveAgentConfig(loadAgentEnv(root)),
     loadKnowledge: () => loadKnowledge(root),
+    loadEntities: () => entityService.read(true),
   })
   const middleware = createAgentMiddleware({ service })
   // Return nothing: Vite treats a returned function as a post-middleware hook.

@@ -21,7 +21,7 @@ export const SUGGESTIONS = [
 
 const MIN_KEY = 'pmo.agent.minimized'
 
-export const initialState = () => ({ open: false, minimized: false, busy: false, draft: '', sessionId: null, messages: [], status: null })
+export const initialState = () => ({ open: false, minimized: false, busy: false, draft: '', sessionId: null, messages: [], status: null, entityContext: null })
 
 const statusChip = (status) => {
   if (!status) return html`<span class="chip">Checking</span>`
@@ -44,6 +44,8 @@ const setupHelp = (status) => html`<div class="agent-setup" role="note">
 const message = (item) => html`<div class="agent-msg agent-msg-${item.role === 'user' ? 'user' : item.error ? 'error' : 'agent'}">
   <span class="agent-who">${item.role === 'user' ? 'You' : 'PMO Agent'}</span>
   <div class="agent-text">${item.text}</div>
+  ${item.entityPin ? html`<p class="muted">Answer pinned to ${item.entityPin.entityId} · ${item.entityPin.variant} · snapshot ${item.entityPin.snapshotIdentity}</p>` : ''}
+  ${item.unverified ? html`<span class="chip chip-warn">Explanation unverified; citations are not automatic truth</span>` : ''}
   ${item.flagged ? html`<span class="chip chip-warn">Rules unchanged</span>` : ''}
 </div>`
 
@@ -58,6 +60,7 @@ export const renderPanel = (state) => state.minimized ? html`<section class="age
     <button type="button" class="agent-minimize" data-agent-minimize aria-label="Minimize the PMO Agent" title="Minimize"><svg class="agent-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   </div>
   <div class="agent-body" id="agent-body" ${state.open ? '' : html`hidden`}>
+    ${state.entityContext ? html`<div role="status" aria-live="polite">Selected schema context: ${state.entityContext.entityId} · snapshot ${state.entityContext.snapshotIdentity}<button type="button" data-agent-context-clear>Remove entity context</button></div>` : ''}
     <div class="agent-log" role="log" aria-live="polite" tabindex="0" aria-label="Conversation">
       ${state.messages.length === 0
         ? html`<p class="muted">Ask what to build next, how a step fits the plan, or which git and guardrail rules apply. It advises; it cannot run commands or change files.</p>
@@ -137,11 +140,12 @@ export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args),
       state.busy = false; render(); return
     }
     let rejected = false
+    const pinnedContext = state.entityContext ? { ...state.entityContext } : null
     try {
-      const { response, json } = await post('/api/agent/ask', { sessionId: state.sessionId, message: question, route: getRoute() })
+      const { response, json } = await post('/api/agent/ask', { sessionId: state.sessionId, message: question, route: getRoute(), ...(pinnedContext ? { entityContext: pinnedContext } : {}) })
       rejected = json?.code === 'rejected' || json?.code === 'not_found'
       if (json?.sessionId) state.sessionId = json.sessionId
-      if (response.ok && json?.ok) state.messages.push({ role: 'agent', text: json.reply, flagged: Boolean(json.flagged) })
+      if (response.ok && json?.ok) state.messages.push({ role: 'agent', text: json.reply, flagged: Boolean(json.flagged), entityPin: json.entityPin || pinnedContext, unverified: json.unverified })
       else state.messages.push({ role: 'agent', text: errorText(json, response.status), error: true })
     } catch {
       state.messages.push({ role: 'agent', text: 'The agent could not be reached.', error: true })
@@ -153,8 +157,9 @@ export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args),
   }
 
   host.addEventListener('click', (event) => {
-    const target = event.target.closest?.('[data-agent-toggle], [data-agent-reset], [data-agent-suggest], [data-agent-minimize], [data-agent-restore]')
+    const target = event.target.closest?.('[data-agent-toggle], [data-agent-reset], [data-agent-suggest], [data-agent-minimize], [data-agent-restore], [data-agent-context-clear]')
     if (!target) return
+    if ('agentContextClear' in target.dataset) { state.entityContext = null; render(); host.querySelector('[data-agent-input]')?.focus(); return }
     if ('agentMinimize' in target.dataset || 'agentRestore' in target.dataset) {
       state.minimized = 'agentMinimize' in target.dataset
       try { localStorage.setItem(MIN_KEY, state.minimized ? '1' : '0') } catch { /* private mode: not remembered */ }
@@ -188,5 +193,5 @@ export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args),
 
   render()
   refreshStatus()
-  return { state, ask, refreshStatus }
+  return { state, ask, refreshStatus, setEntityContext(context) { state.entityContext = { ...context }; state.open = true; state.minimized = false; render(); host.querySelector('[data-agent-input]')?.focus() } }
 }
