@@ -275,6 +275,16 @@
               "scope": {
                 "crossModuleReason": "fixture crosses modules"
               }
+            },
+            {
+              "id": "4.1.4", "title": "Confirmed browser plan editing on isolated plan branches", "summary": "Local browser add, re-scope and reorder with validated diff previews and explicit confirmation; create isolated plan worktrees without changing the serving checkout. Linked integration: HigherEd 6.1.7.",
+              "status": "roadmap", "modules": ["pmo"],
+              "effort": { "size": "L" },
+              "risk": { "level": "medium", "notes": "Reject cross-origin, stale, invalid and unconfirmed writes; preserve all worktrees." },
+              "value": { "score": 4, "why": "Reusable browser editing requested by HigherEd 6.1.7." },
+              "tasks": ["Reuse plan edits; add roadmap-only stable-id ordering", "Implement bounded loopback same-origin development helper and expiring single-use previews", "Create isolated plan branches only after confirmation and revalidation", "Add accessible forms, diff preview, cancellation and static fallback", "Test isolated Git fixtures; never push, publish or deploy from helper"],
+              "acceptance": ["Add, re-scope and reorder produce only validated plan diffs on new plan worktrees", "Invalid, unconfirmed, cross-origin, stale and repeated requests write nothing", "Original and existing worktrees remain unchanged", "Production has no write helper"],
+              "onboarding": "none"
             }
           ]
         },
