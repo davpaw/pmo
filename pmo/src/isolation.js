@@ -99,7 +99,7 @@ export const scopeFor = (branch, step, project, modules = {}) => {
     }
   }
   if (branch.kind === 'plan') return { allow: ['pmo/data/**', 'docs/**'], note: 'plan branch: PMO data and docs only' }
-  if (branch.kind === 'release') return { allow: ['package.json', 'package-lock.json'], note: 'release branch: versions and lockfile only' }
+  if (branch.kind === 'release') return { allow: ['package.json', 'package-lock.json', ...Object.values(modules).filter(m => m.path && !m.path.includes('*')).map(m => `${m.path}/package.json`)], note: 'release branch: versions and lockfile only' }
   return { allow: [], note: 'no scope: not on a step, plan or release branch' }
 }
 
