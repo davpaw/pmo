@@ -20,12 +20,13 @@ export const createPlanEditor = ({ root, now = Date.now }) => {
   const state = () => {
     if (!isClean(root)) throw Error('Serving checkout has uncommitted work. Commit it before editing a plan.')
     const head = git(root, ['rev-parse', 'HEAD'])
+    const ownerBranch = git(root, ['symbolic-ref', '--quiet', 'HEAD'], { allowFail: true })
     const baseHead = git(root, ['rev-parse', '--verify', base])
     const text = showAt(root, baseHead, path)
     if (!text) throw Error('Canonical plan unavailable. Fetch main locally and retry.')
     const catalog = JSON.parse(showAt(root, baseHead, `${directory}/data/catalog.generated.json`))
     const moduleIds = catalog.modules.map(m => m.id)
-    return { head, baseHead, text, context: { moduleIds, pathExists: p => typeof p === 'string' && !p.startsWith('/') && !p.split('/').includes('..') && showAt(root, baseHead, p) !== null } }
+    return { head, ownerBranch, baseHead, text, context: { moduleIds, pathExists: p => typeof p === 'string' && !p.startsWith('/') && !p.split('/').includes('..') && showAt(root, baseHead, p) !== null } }
   }
   return {
     read: () => { const s = state(); return { plan: JSON.parse(s.text), base, baseHead: s.baseHead } },
@@ -48,7 +49,7 @@ export const createPlanEditor = ({ root, now = Date.now }) => {
       previews.delete(request.token)
       if (!p || p.expires <= now()) throw Error('Preview expired or already used. Preview again.')
       const s = state()
-      if (s.head !== p.head || s.baseHead !== p.baseHead || s.text !== p.text || previewPlanEdit(s.text, p.request, s.context) !== p.next) throw Error('Checkout or canonical plan changed. Preview again.')
+      if (s.head !== p.head || s.ownerBranch !== p.ownerBranch || s.baseHead !== p.baseHead || s.text !== p.text || previewPlanEdit(s.text, p.request, s.context) !== p.next) throw Error('Checkout or canonical plan changed. Preview again.')
       const worktree = resolve(dirname(root), `${basename(root)}-plan-${p.request.slug}-${randomUUID().slice(0, 8)}`)
       if (existsSync(worktree)) throw Error('Worktree location already exists.')
       git(root, ['worktree', 'add', '-b', p.branch, worktree, p.baseHead])
@@ -62,24 +63,49 @@ export const createPlanEditor = ({ root, now = Date.now }) => {
   }
 }
 
-export const createPlanMiddleware = ({ editor }) => async (req, res, next) => {
+export const createPlanMiddleware = ({ editor, now = Date.now }) => {
+  const sessions = new Map(), cookieName = 'pmo_plan_session'
+  return async (req, res, next) => {
   const path = String(req.url).split('?')[0]
   if (!['/api/pmo/plan', '/api/pmo/plan/preview', '/api/pmo/plan/confirm'].includes(path)) return next()
   const send = (code, body) => { res.statusCode = code; res.setHeader('content-type', 'application/json'); res.setHeader('cache-control', 'no-store'); res.setHeader('x-content-type-options', 'nosniff'); res.end(JSON.stringify(body)) }
   const host = req.headers.host || ''
   if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress) || !/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host)) return send(403, { error: 'Plan editing is loopback only.' })
   if (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') return send(403, { error: 'Use the same local origin.' })
+  if (req.headers.origin && req.headers.origin !== `http://${host}`) return send(403, { error: 'Use the same local origin.' })
+  for (const [id, session] of sessions) if (session.expires <= now()) sessions.delete(id)
+  const cookie = String(req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1)
+  let session = sessions.get(cookie)
   if (req.method === 'GET' && path === '/api/pmo/plan') {
-    try { return send(200, editor.read()) } catch (e) { return send(409, { error: e.message }) }
+    try {
+      const data = editor.read()
+      if (!session || session.origin !== `http://${host}`) {
+        if (sessions.size >= 100) return send(429, { error: 'Too many editing sessions. Retry in five minutes.' })
+        const id = randomUUID()
+        session = { csrf: randomUUID(), origin: `http://${host}`, expires: now() + TTL, previews: new Set() }
+        sessions.set(id, session)
+        res.setHeader('set-cookie', `${cookieName}=${id}; HttpOnly; SameSite=Strict; Path=/api/pmo/plan; Max-Age=300`)
+      }
+      return send(200, { ...data, csrf: session.csrf })
+    } catch (e) { return send(409, { error: e.message }) }
   }
   if (req.method !== 'POST' || path === '/api/pmo/plan') return send(405, { error: 'Unsupported method.' })
   if (req.headers.origin !== `http://${host}` || req.headers['content-type']?.split(';')[0] !== 'application/json') return send(403, { error: 'Same-origin JSON requests are required.' })
+  if (!session || session.origin !== req.headers.origin || req.headers['x-pmo-plan-csrf'] !== session.csrf) return send(403, { error: 'Editing session missing or expired. Reload the editor.' })
   try {
     let body = '', bytes = 0
     for await (const chunk of req) { bytes += Buffer.byteLength(chunk); if (bytes > LIMIT) return send(413, { error: 'Request too large.' }); body += chunk }
     const request = JSON.parse(body)
-    return send(200, path.endsWith('/preview') ? editor.preview(request) : editor.confirm(request))
+    if (path.endsWith('/preview')) {
+      const result = editor.preview(request)
+      session.previews.add(result.token)
+      return send(200, result)
+    }
+    if (!session.previews.has(request?.token)) return send(403, { error: 'Preview belongs to another session or was already used.' })
+    if (request.confirmed === true) session.previews.delete(request.token)
+    return send(200, editor.confirm(request))
   } catch (e) { return send(400, { error: e.message }) }
+  }
 }
 
 export const pmoPlanPlugin = ({ root }) => ({ name: 'pmo-plan-editor', configureServer(server) { server.middlewares.use(createPlanMiddleware({ editor: createPlanEditor({ root }) })) } })

@@ -71,21 +71,56 @@ const http = async (middleware, overrides = {}, body = '{}') => {
   const req = Readable.from([body])
   Object.assign(req, { url: '/api/pmo/plan/preview', method: 'POST', socket: { remoteAddress: '127.0.0.1' }, headers: { host: 'localhost:5299', origin: 'http://localhost:5299', 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' }, ...overrides })
   let result
-  const res = { setHeader() {}, end(value) { result = { code: this.statusCode, body: JSON.parse(value) } } }
+  const headers = {}
+  const res = { setHeader(k, v) { headers[k] = v }, end(value) { result = { code: this.statusCode, body: JSON.parse(value), headers } } }
   await middleware(req, res, () => { result = { next: true } })
   return result
 }
 test('HTTP requires bounded loopback same-origin JSON and explicit confirmation', async () => {
   let calls = 0
-  const middleware = createPlanMiddleware({ editor: { preview: () => { calls++; return {} }, confirm: r => { if (r.confirmed !== true) throw Error('confirmation'); calls++; return {} }, read: () => ({ plan: {} }) } })
-  assert.equal((await http(middleware)).code, 200)
+  const middleware = createPlanMiddleware({ editor: { preview: () => { calls++; return { token: 'preview' } }, confirm: r => { if (r.confirmed !== true) throw Error('confirmation'); calls++; return {} }, read: () => ({ plan: {} }) } })
+  assert.equal((await http(middleware)).code, 403)
+  const loaded = await http(middleware, { method: 'GET', url: '/api/pmo/plan' })
+  const headers = { host: 'localhost:5299', origin: 'http://localhost:5299', 'content-type': 'application/json', cookie: loaded.headers['set-cookie'].split(';')[0], 'x-pmo-plan-csrf': loaded.body.csrf }
+  assert.match(loaded.headers['set-cookie'], /HttpOnly; SameSite=Strict/)
+  assert.equal((await http(middleware, { headers })).code, 200)
   for (const headers of [{ host: 'evil.test', origin: 'http://evil.test' }, { host: 'localhost:5299', origin: 'http://evil.test', 'content-type': 'application/json' }, { host: 'localhost:5299', 'content-type': 'application/json' }, { host: 'localhost:5299', origin: 'http://localhost:5299', 'content-type': 'text/plain' }, { host: 'localhost:5299', origin: 'http://localhost:5299', 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' }]) assert.equal((await http(middleware, { headers })).code, 403)
   assert.equal((await http(middleware, { socket: { remoteAddress: '192.0.2.1' } })).code, 403)
-  assert.equal((await http(middleware, {}, 'x'.repeat(128 * 1024 + 1))).code, 413)
-  assert.equal((await http(middleware, {}, '{invalid')).code, 400)
-  assert.equal((await http(middleware, { url: '/api/pmo/plan/confirm' })).code, 400)
+  assert.equal((await http(middleware, { headers }, 'x'.repeat(128 * 1024 + 1))).code, 413)
+  assert.equal((await http(middleware, { headers }, '{invalid')).code, 400)
+  assert.equal((await http(middleware, { headers, url: '/api/pmo/plan/confirm' }, '{"token":"preview"}')).code, 400)
   assert.equal((await http(middleware, { method: 'DELETE' })).code, 405)
   assert.deepEqual(await http(middleware, { url: '/elsewhere' }), { next: true })
   assert.equal(calls, 1)
   assert.equal(pmoPlanPlugin({ root: '/not-used' }).configurePreviewServer, undefined)
+})
+test('session ownership, CSRF, origin, expiry and one-shot confirmation fail closed', async () => {
+  let clock = 0, writes = 0, serial = 0
+  const middleware = createPlanMiddleware({ now: () => clock, editor: { read: () => ({}), preview: () => ({ token: `p${++serial}` }), confirm: () => { writes++; return {} } } })
+  const session = async () => {
+    const r = await http(middleware, { method: 'GET', url: '/api/pmo/plan' })
+    return { host: 'localhost:5299', origin: 'http://localhost:5299', 'content-type': 'application/json', cookie: r.headers['set-cookie'].split(';')[0], 'x-pmo-plan-csrf': r.body.csrf }
+  }
+  const a = await session(), b = await session()
+  const p = await http(middleware, { headers: a })
+  const confirm = headers => http(middleware, { headers, url: '/api/pmo/plan/confirm' }, JSON.stringify({ token: p.body.token, confirmed: true }))
+  assert.equal((await confirm(b)).code, 403)
+  assert.equal((await confirm({ ...a, 'x-pmo-plan-csrf': b['x-pmo-plan-csrf'] })).code, 403)
+  assert.equal((await confirm({ ...a, host: 'localhost:5300', origin: 'http://localhost:5300' })).code, 403)
+  assert.equal((await confirm(a)).code, 200)
+  assert.equal((await confirm(a)).code, 403)
+  clock = 300001
+  assert.equal((await confirm(b)).code, 403)
+  assert.equal(writes, 1)
+})
+test('same-head branch switches and concurrent branch owners reject stale confirmation', t => {
+  const s = fixture(t), p = s.editor.preview(s.request)
+  s.sh('switch', '-c', 'step/1.1.1-other')
+  assert.throws(() => s.editor.confirm({ token: p.token, confirmed: true }), /changed/)
+  const q = s.editor.preview(s.request), r = s.editor.preview(s.request)
+  const saved = s.editor.confirm({ token: q.token, confirmed: true })
+  const before = readFileSync(join(saved.worktree, s.path), 'utf8')
+  assert.throws(() => s.editor.confirm({ token: r.token, confirmed: true }))
+  assert.equal(readFileSync(join(saved.worktree, s.path), 'utf8'), before)
+  assert.equal(s.sh('status', '--porcelain'), '')
 })

@@ -6,9 +6,9 @@ export const editorView = () => html`<section class="panel"><h2>Edit the plan</h
   <div id="plan-editor"><p>Checking local editing helper… Static and production sites are read-only.</p></div></section>`
 
 export const mountPlanEditor = (host, { fetcher = fetch } = {}) => {
-  let active = true, preview = null, busy = false, revision = 0
+  let active = true, preview = null, busy = false, revision = 0, csrf = null
   const call = async (path, body) => {
-    const response = await fetcher(`/api/pmo/plan${path}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' } : { cache: 'no-store' })
+    const response = await fetcher(`/api/pmo/plan${path}`, body ? { method: 'POST', headers: { 'content-type': 'application/json', 'x-pmo-plan-csrf': csrf }, body: JSON.stringify(body), credentials: 'same-origin', cache: 'no-store' } : { credentials: 'same-origin', cache: 'no-store' })
     const result = await response.json()
     if (!response.ok) throw Error(result.error || 'Local editing helper unavailable.')
     return result
@@ -19,6 +19,7 @@ export const mountPlanEditor = (host, { fetcher = fetch } = {}) => {
     try {
       const data = await call('')
       if (!active) return
+      csrf = data.csrf
       const epics = data.plan.workstreams.flatMap(ws => ws.epics)
       host.innerHTML = toHtml(html`<p>Editing canonical <code>${data.base}</code> at <code>${data.baseHead}</code>. Fetch main in a terminal when needed; this helper does not fetch or push.</p>
         <form data-plan-form>
