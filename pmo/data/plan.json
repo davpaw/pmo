@@ -278,7 +278,10 @@
             },
             {
               "id": "4.1.4", "title": "Confirmed browser plan editing on isolated plan branches", "summary": "Local browser add, re-scope and reorder with validated diff previews and explicit confirmation; create isolated plan worktrees without changing the serving checkout. Linked integration: HigherEd 6.1.7.",
-              "status": "roadmap", "modules": ["pmo"],
+              "status": "complete", "modules": ["pmo"],
+              "completedAt": "2026-11-07",
+              "evidence": ["pmo/src/plan-browser.js", "pmo/src/plan-browser.test.js", "pmo/src/node/plan-http.js", "pmo/src/node/plan-http.test.js", "pmo/src/plan-editor.js"],
+              "notes": "Shared CLI schema/text edits power add and re-scope; roadmap ordering preserves ids, dependencies and completed slots. Loopback same-origin dev-only JSON helper uses bounded requests and expiring single-use preview tokens; explicit confirmation rechecks canonical main and serving checkout before creating a new isolated plan worktree. Never switches serving branch, commits, pushes, publishes or deploys. Fixtures verify original and unrelated dirty worktrees remain unchanged, malformed/stale/expired/unconfirmed/replayed requests write nothing, and production has no helper. Full 242 tests, catalog rebuild, production build, validation and scope pass. Browser dirty-checkout fallback verified; implementation awaits PR delivery.",
               "effort": { "size": "L" },
               "risk": { "level": "medium", "notes": "Reject cross-origin, stale, invalid and unconfirmed writes; preserve all worktrees." },
               "value": { "score": 4, "why": "Reusable browser editing requested by HigherEd 6.1.7." },

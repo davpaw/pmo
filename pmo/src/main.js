@@ -16,9 +16,11 @@ import { indexPlan } from './plan.js'
 import { DEFAULT_UI, NAV, pageTitle, parseRoute, renderRoute } from './views.js'
 import { mountAgentPanel } from './agent-panel.js'
 import { createArchitectureClient } from './architecture/client.js'
+import { mountPlanEditor } from './plan-editor.js'
 
 const architecture = createArchitectureClient()
 let unmountArchitecture = null
+let unmountEditor = null
 let renderVersion = 0
 const app = document.querySelector('#app')
 const ui = DEFAULT_UI()
@@ -37,10 +39,15 @@ const render = () => {
   const focusKey = active?.dataset?.filter
   const caret = active?.selectionStart
   const route = parseRoute(window.location.hash)
+  // Background read refreshes must not discard a draft or a reviewed confirmation.
+  if (route.name === 'edit' && unmountEditor) return
   unmountArchitecture?.()
+  unmountEditor?.()
+  unmountEditor = null
   unmountArchitecture = null
   app.innerHTML = toHtml(frame(route))
   const version = ++renderVersion
+  if (route.name === 'edit') unmountEditor = mountPlanEditor(app.querySelector('#plan-editor'))
   if (route.name === 'architecture') {
     const host = app.querySelector('#architecture-view')
     import('./architecture/viewer.jsx').then(({ mountArchitecture }) => {
