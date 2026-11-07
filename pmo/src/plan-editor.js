@@ -22,12 +22,12 @@ export const mountPlanEditor = (host, { fetcher = fetch } = {}) => {
       const epics = data.plan.workstreams.flatMap(ws => ws.epics)
       host.innerHTML = toHtml(html`<p>Editing canonical <code>${data.base}</code> at <code>${data.baseHead}</code>. Fetch main in a terminal when needed; this helper does not fetch or push.</p>
         <form data-plan-form>
-        <label class="field">Operation<select name="operation"><option value="add">Add a step</option><option value="set">Re-scope a roadmap step</option><option value="reorder">Reorder roadmap steps</option></select></label>
-        <label class="field">Target id<input name="target" required value="${epics[0]?.id || ''}" list="plan-targets"></label>
+        <label class="field"><span>Operation</span><select name="operation"><option value="add">Add a step</option><option value="set">Re-scope a roadmap step</option><option value="reorder">Reorder roadmap steps</option></select></label>
+        <label class="field"><span>Target id</span><input name="target" required value="${epics[0]?.id || ''}" list="plan-targets"></label>
         <datalist id="plan-targets">${epics.flatMap(e => [e.id, ...e.steps.filter(s => s.status === 'roadmap').map(s => s.id)]).map(id => html`<option value="${id}"></option>`)}</datalist>
         <p>Add/reorder: epic id. Re-scope: roadmap step id. Reorder JSON: every roadmap id in the epic in desired order; other steps remain anchored.</p>
-        <label class="field">Plan branch slug<input name="slug" required pattern="[a-z0-9][a-z0-9-]{0,48}" placeholder="scope-review"></label>
-        <label class="field">Step or changes (JSON)<textarea name="changes" rows="18" required>${JSON.stringify(STEP_TEMPLATE, null, 2)}</textarea></label>
+          <label class="field"><span>Plan branch slug</span><input name="slug" required pattern="[a-z0-9]([a-z0-9]|\\u002d){0,48}" placeholder="scope-review"></label>
+        <label class="field"><span>Step or changes (JSON)</span><textarea name="changes" rows="18" required>${JSON.stringify(STEP_TEMPLATE, null, 2)}</textarea></label>
         <p>For re-scope, supply changed fields only (null removes a field). Ids, status and completion fields cannot change.</p>
         <button type="submit">Validate and preview diff</button></form>
         <p role="status" aria-live="polite">No files written.</p><div data-plan-review></div>
