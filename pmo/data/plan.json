@@ -169,6 +169,16 @@
                 "Tests cover classification manipulation, catalog freshness and plan-driven rendering",
                 "Required aggregate checks always report a stable result"
               ]
+            },
+            {
+              "id": "1.1.6", "title": "Per-module local release versions and tag visibility", "summary": "Reusable implementation for HigherEd integration step 6.1.6: provide a safe local-only pmo release command on existing release branches, module release metadata and UI, and strict version-only release manifest checks. No publishing, pushing, deployments, or integrity script execution.",
+              "status": "roadmap", "kind": "build", "modules": ["pmo"],
+              "effort": { "size": "M" },
+              "risk": { "level": "medium", "notes": "Git mutations must refuse dirty, out-of-scope or invalid inputs and never invoke lifecycle, release or deployment scripts." },
+              "value": { "score": 3, "why": "Attached hosts need linkable per-module versions without bypassing release scope." },
+              "tasks": ["Implement release command with patch/minor/major or explicit stable semver, dry-run and local annotated tags only", "Use declared module paths, validate release branch and exact version-only diff, preserve all other files", "Expose reachable latest module tags and path-specific commits since in live catalog facts and module views", "Test in throwaway git repositories, including lifecycle deployment traps and invalid branch/version/tag cases", "Contribute changed generic files to HigherEd 6.1.6 with exact-content receipts after main merge"],
+              "acceptance": ["pmo release <module> [patch|minor|major|version] defaults to patch, commits only its package version and creates <module>@<version> locally on an existing release branch", "No command pushes, publishes, deploys or invokes npm lifecycle scripts; dry-run leaves files, commits and tags unchanged", "Release checks reject source, scripts, dependencies, manifest additions/deletions and non-version changes", "Module live catalog shows latest reachable stable module tag, tag commit and path-specific commits since with unavailable/no-tag states", "Tests, local production build, plan validation and scope check pass"],
+              "onboarding": "none"
             }
           ]
         }
