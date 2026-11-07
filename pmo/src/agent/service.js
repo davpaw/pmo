@@ -15,6 +15,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { REMINDER, REMINDER_FLAGGED, looksLikeOverride } from './instructions.js'
 import { buildSystemPrompt, neutralise } from './prompt.js'
+import { resolveEntityQuestion, validateEntityContextIds, verifyEntityReply, privateEntityText } from './entity-context.js'
 
 export const LIMITS = Object.freeze({
   messageChars: 4000,
@@ -154,7 +155,7 @@ export const verifyKey = async ({ config, fetchImpl }) => {
  * @param {{ getConfig: () => object, loadKnowledge: () => string,
  *   fetchImpl?: typeof fetch, now?: () => number, newId?: () => string, newMarker?: () => string }} deps
  */
-export const createAgentService = ({ getConfig, loadKnowledge, fetchImpl, now = Date.now, newId = randomUUID, newMarker = () => `pmo-${randomUUID()}` }) => {
+export const createAgentService = ({ getConfig, loadKnowledge, loadEntities = null, fetchImpl, now = Date.now, newId = randomUUID, newMarker = () => `pmo-${randomUUID()}` }) => {
   const marker = newMarker()
   const sessions = new Map()
   const recent = []
@@ -215,17 +216,29 @@ export const createAgentService = ({ getConfig, loadKnowledge, fetchImpl, now = 
 
     reset: (id) => ({ ok: sessions.delete(id) }),
 
-    async ask({ sessionId, message, route }) {
+    async ask({ sessionId, message, route, entityContext }) {
       const config = getConfig()
-      if (!config.configured) return { ok: false, status: 503, error: `The agent is not configured. ${config.issues.join(' ')}`.trim() }
       if (typeof message !== 'string' || !message.trim()) return { ok: false, status: 400, error: 'Type a question first.' }
       if (message.length > LIMITS.messageChars) return { ok: false, status: 413, error: `Keep the question under ${LIMITS.messageChars} characters.` }
       if (limited()) return { ok: false, status: 429, error: 'Too many questions in a minute. Wait a moment.' }
+      try { validateEntityContextIds(entityContext) } catch { return { ok: false, status: 400, error: 'Invalid entity context. Send only ids and snapshot identity.' } }
+      let grounding = null
+      if (loadEntities) {
+        try { grounding = resolveEntityQuestion({ snapshot: await loadEntities(), context: entityContext, message }) }
+        catch { return { ok: false, status: 503, error: 'Entity metadata unavailable. Refresh public declarations before asking; no schema answer can be grounded.' } }
+      } else if (entityContext) return { ok: false, status: 503, error: 'Entity metadata service unavailable.' }
+      if (grounding?.error) return { ok: false, status: grounding.status, error: grounding.error }
+      if (grounding?.localReply) return { ok: true, reply: grounding.localReply, entityPin: grounding.pin || null, unverified: false }
+      if (!config.configured) return { ok: false, status: 503, error: `The agent is not configured. ${config.issues.join(' ')}`.trim() }
+      if (grounding && privateEntityText(message)) return { ok: false, status: 400, error: 'Do not send private values or credentials to schema chat.' }
 
       const { session, id } = open(sessionId)
       if (session.busy) return { ok: false, status: 409, error: 'The previous question is still being answered.' }
       session.busy = true
       session.touched = now()
+      // Context changes discard history before transmission, including retained record/private user text.
+      const contextKey = grounding?.key || null
+      if (session.entityKey !== contextKey) { session.history = []; session.entityKey = contextKey }
 
       const text = neutralise(message).trim()
       const flagged = looksLikeOverride(text)
@@ -233,6 +246,7 @@ export const createAgentService = ({ getConfig, loadKnowledge, fetchImpl, now = 
       const user = { role: 'user', content: `${page}${text}` }
       const messages = [
         { role: 'system', content: session.system },
+        ...(grounding ? [{ role: 'system', content: grounding.prompt }] : []),
         ...session.history.slice(-LIMITS.historyMessages),
         user,
         { role: 'system', content: flagged ? REMINDER_FLAGGED : REMINDER },
@@ -242,10 +256,11 @@ export const createAgentService = ({ getConfig, loadKnowledge, fetchImpl, now = 
         if (raw.includes(marker)) {
           return { ok: true, sessionId: id, reply: 'That reply was withheld because it would have exposed the agent\'s internal instructions. Ask about the plan, a step, a module or the git rules.', flagged: true }
         }
-        const reply = neutralise(raw).slice(0, LIMITS.replyChars)
+        const checked = grounding ? verifyEntityReply(neutralise(raw).slice(0, LIMITS.replyChars), grounding) : null
+        const reply = checked ? checked.reply : neutralise(raw).slice(0, LIMITS.replyChars)
         session.history.push(user, { role: 'assistant', content: reply })
         if (session.history.length > LIMITS.historyMessages) session.history.splice(0, session.history.length - LIMITS.historyMessages)
-        return { ok: true, sessionId: id, reply, flagged }
+        return { ok: true, sessionId: id, reply, flagged, ...(grounding ? { entityPin: grounding.pin, unverified: checked.unverified } : {}) }
       } catch (error) {
         if (error.code === 'rejected' || error.code === 'not_found') last = null
         return { ok: false, status: 502, error: error.message, code: error.code, sessionId: id }

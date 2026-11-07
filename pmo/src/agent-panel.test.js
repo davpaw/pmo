@@ -1,3 +1,11 @@
+test('panel: selected context and delayed answers retain separate escaped pinned identities', () => {
+  const out = render({ open: true, entityContext: { entityId: 'person:new', snapshotIdentity: 'b'.repeat(64) }, messages: [{ role: 'agent', text: 'older answer', entityPin: { entityId: 'person:old', variant: '<unsafe>', snapshotIdentity: 'a'.repeat(64) }, unverified: true }] })
+  assert.match(out, /Selected schema context: person:new/)
+  assert.match(out, /Answer pinned to person:old/)
+  assert.match(out, /&lt;unsafe&gt;/)
+  assert.match(out, /data-agent-context-clear/)
+  assert.match(out, /citations are not automatic truth/)
+})
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { toHtml } from './ui/index.js'

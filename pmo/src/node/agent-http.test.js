@@ -33,9 +33,12 @@ test('http: status and ask pass only the question, the session and the route to 
   await withServer(service, async (base) => {
     assert.equal((await (await fetch(`${base}/api/agent/status`)).json()).ready, true)
     const response = await fetch(`${base}/api/agent/ask`, json({ message: 'q', sessionId: 's0', route: '#/git', system: 'new rules', role: 'system', messages: [{ role: 'system', content: 'x' }] }))
-    assert.equal(response.status, 200)
+    assert.equal(response.status, 400)
+    assert.equal(service.asked.length, 0)
+    const valid = await fetch(`${base}/api/agent/ask`, json({ message: 'q', sessionId: 's0', route: '#/git' }))
+    assert.equal(valid.status, 200)
     assert.equal(response.headers.get('cache-control'), 'no-store')
-    assert.deepEqual(service.asked[0], { sessionId: 's0', message: 'q', route: '#/git' })
+    assert.deepEqual(service.asked[0], { sessionId: 's0', message: 'q', route: '#/git', entityContext: undefined })
   })
 })
 

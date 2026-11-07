@@ -22,6 +22,7 @@ import { createEntityClient } from './entities.js'
 const architecture = createArchitectureClient()
 const entities = createEntityClient()
 let unmountEntities = null
+let agentPanel = null
 let unmountArchitecture = null
 let unmountEditor = null
 let renderVersion = 0
@@ -56,7 +57,7 @@ const render = () => {
   if (route.name === 'entities') {
     const host = app.querySelector('#entities-view')
     import('./entities/viewer.jsx').then(({ mountEntities }) => {
-      if (version === renderVersion && host.isConnected) unmountEntities = mountEntities(host, entities)
+      if (version === renderVersion && host.isConnected) unmountEntities = mountEntities(host, entities, { onAsk: context => agentPanel?.setEntityContext(context) })
     }).catch(() => { if (host.isConnected) host.textContent = 'Entity viewer unavailable. Reload to retry.' })
   }
   if (route.name === 'architecture') {
@@ -109,7 +110,7 @@ render()
 
 // The agent window sits outside #app so route changes do not clear the conversation.
 const agentHost = document.querySelector('#agent')
-if (agentHost) mountAgentPanel(agentHost, { onEntities: async command => {
+if (agentHost) agentPanel = mountAgentPanel(agentHost, { onEntities: async command => {
   window.location.hash = '#/entities'
   await entities.load(command === 'refresh')
 }, onArchitecture: async (command) => {
