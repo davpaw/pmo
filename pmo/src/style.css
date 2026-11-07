@@ -1,4 +1,12 @@
 @import './tokens.css';
+/* Entity information always has a non-canvas route. */
+.entity-canvas { height: 28rem; margin-block: 1rem; border: 1px solid currentColor; }
+.entity-table { overflow-x: auto; }
+.entities code { overflow-wrap: anywhere; }
+.entities aside { min-width: 0; }
+.entities button:focus-visible, .entities input:focus-visible, .entities select:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+@media (max-width: 700px) { .entity-canvas { height: 18rem; } .entities .architecture-filters { display: grid; } }
+@media (prefers-reduced-motion: reduce) { .entities *, .entities *::before, .entities *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
 * { box-sizing: border-box; }
 

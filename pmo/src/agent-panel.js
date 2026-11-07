@@ -6,8 +6,11 @@
 
 import { html, toHtml } from './ui/index.js'
 import { architectureCommand } from './architecture/graph.js'
+import { entityCommand } from './entities.js'
 
 export const SUGGESTIONS = [
+  'Show entities',
+  'Refresh entities',
   'Show logical flow chart',
   'Refresh logical flow chart',
   'What should I work on next, and why?',
@@ -78,7 +81,7 @@ const errorText = (body, status) => (typeof body?.error === 'string' ? body.erro
  * Mounts the panel into `host`. `fetchImpl` and `getRoute` are injectable for tests.
  * @returns {{ state: object, ask: (text: string) => Promise<void>, refreshStatus: () => Promise<void> }}
  */
-export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args), getRoute = () => window.location.hash, doc = document, onArchitecture = null } = {}) => {
+export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args), getRoute = () => window.location.hash, doc = document, onArchitecture = null, onEntities = null } = {}) => {
   const state = initialState()
   try { state.minimized = localStorage.getItem(MIN_KEY) === '1' } catch { /* not remembered */ }
   const render = () => {
@@ -109,7 +112,8 @@ export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args),
   const ask = async (text) => {
     const question = String(text ?? '').trim()
     if (!question || state.busy) return
-    const command = architectureCommand(question)
+    const entityAction = entityCommand(question)
+    const command = entityAction || architectureCommand(question)
     if (!command && !state.status?.usable) {
       state.messages.push({ role: 'agent', text: 'Model setup is needed for questions. You can still show or refresh the logical flow chart.', error: true })
       render(); return
@@ -120,6 +124,12 @@ export const mountAgentPanel = (host, { fetchImpl = (...args) => fetch(...args),
     render()
     if (command) {
       try {
+        if (entityAction) {
+          if (!onEntities) throw Error('The entity browser is not available here.')
+          await onEntities(entityAction)
+          state.messages.push({ role: 'agent', text: 'Opened public entity metadata. No model call or record access.' })
+          state.busy = false; render(); return
+        }
         if (!onArchitecture) throw Error('The architecture viewer is not available here.')
         await onArchitecture(command)
         state.messages.push({ role: 'agent', text: command === 'refresh' ? 'Rescanned the application and refreshed the Logical architecture tab.' : 'Opened the Logical architecture tab. Select layers or inspect a node or connection.' })

@@ -22,6 +22,7 @@ export const NAV = [
   ['overview', 'Overview'],
   ['modules', 'Modules'],
   ['architecture', 'Logical architecture'],
+  ['entities', 'Entities'],
   ['roadmap', 'Roadmap'],
   ['edit', 'Edit plan'],
   ['decisions', 'Decisions'],
@@ -317,6 +318,7 @@ export const DEFAULT_UI = () => ({
 export const renderRoute = (route, ctx, ui) => {
   switch (route.name) {
     case 'edit': return editorView()
+    case 'entities': return html`<div id="entities-view" aria-label="Entities"><h2>Entities</h2><p>Loading public schema metadata, not records. Inspect scoped variants, explicit relationships, provenance and coverage. Field schema not recorded means unknown, never proven absence.</p></div>`
     case 'architecture': return html`<div id="architecture-view" aria-label="Logical architecture"><h2>Logical architecture</h2><p>Loading the application diagram. Modules and dependencies appear first; select additional layers for services, persistence, integrations and security.</p></div>`
     case 'modules': return route.arg ? moduleDetail(ctx, route.arg) : modulesView(ctx, ui)
     case 'roadmap': return roadmapView(ctx, ui)
