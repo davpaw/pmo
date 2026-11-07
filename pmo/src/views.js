@@ -12,6 +12,7 @@ import { buildBrief, renderBriefMarkdown } from './briefing.js'
 import { branchNameFor, decisionScore, nextSteps, rankOpenSteps, readiness, rollup, stepsForModule, transitiveDependents } from './plan.js'
 import { isOpen } from './schema.js'
 import { releaseFacts } from './release-view.js'
+import { editorView } from './plan-editor.js'
 
 const STATUS_LABEL = { complete: 'Complete', in_progress: 'In progress', incomplete: 'Incomplete', roadmap: 'Roadmap' }
 const STATUS_TONE = { complete: 'ok', in_progress: 'info', incomplete: 'warn', roadmap: 'neutral' }
@@ -22,6 +23,7 @@ export const NAV = [
   ['modules', 'Modules'],
   ['architecture', 'Logical architecture'],
   ['roadmap', 'Roadmap'],
+  ['edit', 'Edit plan'],
   ['decisions', 'Decisions'],
   ['guardrails', 'Guardrails'],
   ['git', 'Git and rules'],
@@ -314,6 +316,7 @@ export const DEFAULT_UI = () => ({
 /** @param {{ name: string, arg?: string }} route */
 export const renderRoute = (route, ctx, ui) => {
   switch (route.name) {
+    case 'edit': return editorView()
     case 'architecture': return html`<div id="architecture-view" aria-label="Logical architecture"><h2>Logical architecture</h2><p>Loading the application diagram. Modules and dependencies appear first; select additional layers for services, persistence, integrations and security.</p></div>`
     case 'modules': return route.arg ? moduleDetail(ctx, route.arg) : modulesView(ctx, ui)
     case 'roadmap': return roadmapView(ctx, ui)
