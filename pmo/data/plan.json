@@ -288,6 +288,15 @@
               "tasks": ["Reuse plan edits; add roadmap-only stable-id ordering", "Implement bounded loopback same-origin development helper and expiring single-use previews", "Create isolated plan branches only after confirmation and revalidation", "Add accessible forms, diff preview, cancellation and static fallback", "Test isolated Git fixtures; never push, publish or deploy from helper"],
               "acceptance": ["Add, re-scope and reorder produce only validated plan diffs on new plan worktrees", "Invalid, unconfirmed, cross-origin, stale and repeated requests write nothing", "Original and existing worktrees remain unchanged", "Production has no write helper"],
               "onboarding": "none"
+            },
+            {
+              "id": "4.1.5", "title": "Bind browser plan confirmation to a protected local session", "summary": "Harden the browser plan editor from 4.1.4 with session-bound CSRF confirmation, bounded expiring sessions, branch identity checks and ownership/concurrency regression fixtures. Linked host integration: HigherEd 6.1.7.",
+              "status": "roadmap", "modules": ["pmo"], "dependsOn": ["4.1.4"],
+              "effort": { "size": "S" },
+              "risk": { "level": "medium", "notes": "Local repository writes require browser-session isolation and fail-closed preview identity." },
+              "value": { "score": 5, "why": "Prevent cross-session confirmation and stale branch ownership when using local plan editing." },
+              "acceptance": ["Preview and confirmation require same-origin JSON plus a session CSRF header; confirmation tokens are bound to the issuing session", "Expired sessions, switched branches and concurrent ownership reject saving without writes", "Standalone tests, build, plan checks and reviewed upstream main delivery pass"],
+              "onboarding": "none"
             }
           ]
         },
