@@ -20,6 +20,8 @@ import { buildLive } from './node/live.js'
 import { gatherFacts } from './node/preflight.js'
 import { commandAgent } from './node/agent-setup.js'
 import { commandPlan } from './node/plan-command.js'
+import { commandRelease } from './node/release.js'
+import { releaseManifestProblems } from './release-policy.js'
 
 export const PLAN_PATH = 'pmo/data/plan.json'
 const DATA = 'pmo/data'
@@ -123,6 +125,10 @@ export const evaluate = ({ root, data, branchName, base, staged = false, forPr =
   notes.push(`${scopeFor(branch, step, project, modules).note}; ${files.length} changed file(s)`)
 
   for (const v of checkChangedFiles(files, branch, step, project, modules)) add(v.rule, `${v.file}: ${v.reason}`)
+  if (branch.kind === 'release') {
+    const manifests = files.filter(f => /(^|\/)package(?:-lock)?\.json$/.test(f)).map(file => ({ file, before: showAt(root, staged ? 'HEAD' : since, file), after: staged ? showAt(root, '', file) : existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : null }))
+    for (const message of releaseManifestProblems(manifests)) add('manifest', message)
+  }
   const importChanges = added.filter((a) => a.file.endsWith('/package.json'))
   for (const file of files.filter((f) => /\.(js|mjs|cjs|jsx|ts|tsx)$/.test(f))) {
     const previous = new Set(importSpecifiers(showAt(root, staged ? 'HEAD' : since, file) ?? ''))
@@ -346,6 +352,7 @@ const HELP = `pmo - Program management
   status | list | next              Overview, step table, ranked next steps
   validate [--fresh]                 Plan, guardrails (and catalog freshness)
   build [--git]                      Regenerate the catalog (and live git facts)
+  release <module> [patch|minor|major|version] [--dry-run]  Local version commit/tag on release/ only; never publishes
   hooks install                      Enable .githooks
   upstream [status|check] [--verify-remote]  Verify content-bound upstream contributions
   worktrees [--check]                Inspect unfinished local work without modifying it
@@ -359,6 +366,7 @@ export const run = async (argv, { root, out = console, prompt, jira, fetchImpl, 
   const args = parseArgs(argv)
   const command = args.positional[0]
   const data = loadData(root)
+  if (command === 'release') return commandRelease({ root, data, args, out, evaluate })
   if (['brief', 'start', 'next', 'list', 'status'].includes(command) || (command === 'build' && args.flags.git)) {
     if (!process.env.CI && canSyncPrs(root, data.project)) data.pullRequests = prSync({ root, project: data.project, plan: data.plan })
   }

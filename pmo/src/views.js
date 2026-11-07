@@ -11,6 +11,7 @@ import { html } from './ui/index.js'
 import { buildBrief, renderBriefMarkdown } from './briefing.js'
 import { branchNameFor, decisionScore, nextSteps, rankOpenSteps, readiness, rollup, stepsForModule, transitiveDependents } from './plan.js'
 import { isOpen } from './schema.js'
+import { releaseFacts } from './release-view.js'
 
 const STATUS_LABEL = { complete: 'Complete', in_progress: 'In progress', incomplete: 'Incomplete', roadmap: 'Roadmap' }
 const STATUS_TONE = { complete: 'ok', in_progress: 'info', incomplete: 'warn', roadmap: 'neutral' }
@@ -125,6 +126,7 @@ const moduleDetail = (ctx, id) => {
         <dt>Entry</dt><dd>${m.entry ? html`<code>${m.entry}</code>` : html`<span class="muted">none declared</span>`}</dd>
         <dt>May depend on</dt><dd>${moduleLinks(m.dependsOn ?? [])}</dd>
         <dt>Used by</dt><dd>${moduleLinks(m.dependents ?? [])}</dd>
+        ${releaseFacts(html, git?.release, ctx.project)}
         ${git?.last ? html`<dt>Last commit</dt><dd><code>${git.last.hash}</code> ${git.last.date} ${git.last.subject} <span class="muted">(${git.commits} commits touching the module)</span></dd>` : ''}
       </dl>
       ${m.gaps?.length ? html`<h3>Recorded gaps</h3><ul>${m.gaps.map((g) => html`<li>${g}</li>`)}</ul>` : ''}

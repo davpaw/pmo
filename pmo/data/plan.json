@@ -172,7 +172,10 @@
             },
             {
               "id": "1.1.6", "title": "Per-module local release versions and tag visibility", "summary": "Reusable implementation for HigherEd integration step 6.1.6: provide a safe local-only pmo release command on existing release branches, module release metadata and UI, and strict version-only release manifest checks. No publishing, pushing, deployments, or integrity script execution.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"],
+              "status": "complete", "kind": "build", "modules": ["pmo"],
+              "completedAt": "2026-11-06",
+              "evidence": ["pmo/src/node/release.js", "pmo/src/node/release.test.js", "pmo/src/release-policy.js", "pmo/src/release-view.js", "pmo/src/node/live.js", "pmo/src/cli.js"],
+              "notes": "234 upstream tests pass, including 10 release/git/render regressions. Safe local production build, fresh catalog validation and scope checks pass. Module detail rendering exercised through real renderRoute with fixture git facts, not a browser session. No real module version bumped, no real release tags published, no deployment; all release mutation tests use disposable local repositories. HigherEd integration 6.1.6 consumes mapped source with exact-content receipts after this PR merges.",
               "effort": { "size": "M" },
               "risk": { "level": "medium", "notes": "Git mutations must refuse dirty, out-of-scope or invalid inputs and never invoke lifecycle, release or deployment scripts." },
               "value": { "score": 3, "why": "Attached hosts need linkable per-module versions without bypassing release scope." },
