@@ -6,6 +6,7 @@ import { pmoRepositoryPlugin } from './src/node/repository-http.js'
 import { pmoArchitecturePlugin } from './src/node/architecture-http.js'
 import { pmoAgentPlugin } from './src/node/agent-http.js'
 import { pmoPlanPlugin } from './src/node/plan-http.js'
+import { pmoEntityPlugin } from './src/node/entity-http.js'
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 
@@ -13,7 +14,7 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 // The agent endpoint (/api/agent/*) is served by the dev and preview servers; its key never reaches the browser.
 export default defineConfig({
   base: '/',
-  plugins: [pmoPlanPlugin({ root: repoRoot }), pmoArchitecturePlugin({ root: repoRoot }), pmoSnapshotPlugin({ root: repoRoot }), pmoAgentPlugin({ root: repoRoot }), pmoPrPlugin({ root: repoRoot }), pmoRepositoryPlugin({ root: repoRoot })],
+  plugins: [pmoEntityPlugin({ root: repoRoot }), pmoPlanPlugin({ root: repoRoot }), pmoArchitecturePlugin({ root: repoRoot }), pmoSnapshotPlugin({ root: repoRoot }), pmoAgentPlugin({ root: repoRoot }), pmoPrPlugin({ root: repoRoot }), pmoRepositoryPlugin({ root: repoRoot })],
   server: { port: 5299, strictPort: true },
   preview: { port: 4299, strictPort: true },
 })

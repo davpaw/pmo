@@ -368,7 +368,7 @@
             },
             {
               "id": "4.2.2", "title": "Add provenance-aware entity metadata browser", "summary": "Reusable entity contract, bounded host metadata reader and Entities tab following Logical architecture. See docs/ENTITY-BROWSER-PLAN.md; metadata only, no application evaluation or record access.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.1"],
+              "status": "complete", "completedAt": "2026-11-07", "evidence": ["pmo/src/entities.js", "pmo/src/entities/viewer.jsx", "pmo/src/entities.test.js", "pmo/src/node/entity-scan.js", "pmo/src/node/entity-scan.test.js", "pmo/src/node/entity-http.js", "docs/ENTITY-BROWSER-PLAN.md"], "notes": "Closed public metadata v1, fixed host JSON binding, bounded no-evaluation worker, current content/reachable revision checks, unknown versus scoped absence and separately visible stale/conflicting declarations. Entities graph and full accessible inspector/list/filter/refresh with model-free commands. Generic fixtures only, no host exports or deployments. Production preview keyboard Enter selection and accessibility-tree/table/status checks recorded in design doc; not a full VoiceOver audit. Additional language extraction explicitly unsupported. Separate Agent step 4.2.3 remains required; exact-head PR/main finish gates delivery.", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.1"],
               "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
               "effort": { "size": "L" },
               "risk": { "level": "high", "notes": "Source discovery and public metadata can expose private data or overstate schema completeness; enforce allowlists, bounds, evidence classes and unknown states." },

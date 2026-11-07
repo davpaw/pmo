@@ -17,8 +17,11 @@ import { DEFAULT_UI, NAV, pageTitle, parseRoute, renderRoute } from './views.js'
 import { mountAgentPanel } from './agent-panel.js'
 import { createArchitectureClient } from './architecture/client.js'
 import { mountPlanEditor } from './plan-editor.js'
+import { createEntityClient } from './entities.js'
 
 const architecture = createArchitectureClient()
+const entities = createEntityClient()
+let unmountEntities = null
 let unmountArchitecture = null
 let unmountEditor = null
 let renderVersion = 0
@@ -42,12 +45,20 @@ const render = () => {
   // Background read refreshes must not discard a draft or a reviewed confirmation.
   if (route.name === 'edit' && unmountEditor) return
   unmountArchitecture?.()
+  unmountEntities?.()
+  unmountEntities = null
   unmountEditor?.()
   unmountEditor = null
   unmountArchitecture = null
   app.innerHTML = toHtml(frame(route))
   const version = ++renderVersion
   if (route.name === 'edit') unmountEditor = mountPlanEditor(app.querySelector('#plan-editor'))
+  if (route.name === 'entities') {
+    const host = app.querySelector('#entities-view')
+    import('./entities/viewer.jsx').then(({ mountEntities }) => {
+      if (version === renderVersion && host.isConnected) unmountEntities = mountEntities(host, entities)
+    }).catch(() => { if (host.isConnected) host.textContent = 'Entity viewer unavailable. Reload to retry.' })
+  }
   if (route.name === 'architecture') {
     const host = app.querySelector('#architecture-view')
     import('./architecture/viewer.jsx').then(({ mountArchitecture }) => {
@@ -98,7 +109,10 @@ render()
 
 // The agent window sits outside #app so route changes do not clear the conversation.
 const agentHost = document.querySelector('#agent')
-if (agentHost) mountAgentPanel(agentHost, { onArchitecture: async (command) => {
+if (agentHost) mountAgentPanel(agentHost, { onEntities: async command => {
+  window.location.hash = '#/entities'
+  await entities.load(command === 'refresh')
+}, onArchitecture: async (command) => {
   window.location.hash = '#/architecture'
   await architecture.load(command === 'refresh')
 } })
