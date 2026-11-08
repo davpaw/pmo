@@ -403,6 +403,17 @@
               "env": { "keys": [], "required": [], "services": [] },
               "acceptance": ["Generic fixtures prove static fallback dates, malformed fallback rejection and stale retention", "Injected public producer metadata undergoes same evidence checks; bounded governance projection rejects unsafe text and unknown fields", "Source citations link only to verified immutable evidence with safe repository/path/range", "Keyboard focus and non-canvas field/relationship roles have regression and preview evidence", "No host records/configuration, Agent integration, schema mutation or deployment introduced"],
               "onboarding": "none"
+            },
+            {
+              "id": "4.2.5", "title": "Harden entity Agent snapshot validation and freeform resolution", "summary": "Correct substring variant matching, selected relationship narrowing across explicitly named entities and full snapshot/status/privacy validation before host integration. No host data.",
+              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.3", "4.2.4"],
+              "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
+              "effort": { "size": "M" },
+              "risk": { "level": "high", "notes": "False source authority or private retained text must not reach a provider." },
+              "value": { "score": 5, "why": "Makes merged generic contexts safe for host integration." },
+              "tasks": ["Validate full public snapshots and context ids; stale conflicting unsupported truncated evidence cannot grant complete authority", "Resolve explicit names and variants with token boundaries; discard unrelated selected field and relationship; clarify ambiguity", "Keep model narrative unverified and exact citation membership checked; reject private current and retained turns and malformed provider replies", "Test freeform paraphrases adversarial schemas citations context/session switching and provider failures without external calls"],
+              "acceptance": ["Closed snapshot/status validation rejects malformed metadata before provider transmission", "Explicit resolution cannot match substrings or inherit unrelated selected field/relationship", "Private current/retained turns are rejected or withheld and model narrative remains unverified", "Standalone deterministic tests and required CI pass"],
+              "onboarding": "none"
             }
           ]
         }
