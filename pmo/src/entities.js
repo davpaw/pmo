@@ -76,7 +76,42 @@ export const visibleEntities = (snapshot, state) => (snapshot?.entities || []).f
     ['schemaOwner', 'supply', 'evidenceClass', 'coverage'].every(k => !state[k] || e[k] === state[k]) &&
     (!state.workspace || e.workspaces.includes(state.workspace)) && (!state.consumer || e.consumers.includes(state.consumer))
 })
-export const createEntityClient = ({ fetchImpl = (...args) => fetch(...args) } = {}) => {
+/** Closed, deliberately small public projection of host declaration governance. */
+export const validateEntityGovernance = value => {
+  object(value, ['version', 'generatedAt', 'mode', 'deployment', 'declarations'])
+  if (value.version !== 1 || !['local', 'static'].includes(value.mode) || value.deployment !== 'unverified') fail()
+  if (value.generatedAt !== null && (typeof value.generatedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value.generatedAt) || !Number.isFinite(Date.parse(value.generatedAt)))) fail()
+  list(value.declarations, d => { object(d, ['entityId', 'status']); if (d.entityId !== null) id(d.entityId); text(d.status) }, 200)
+  return structuredClone(value)
+}
+export const entityEvidenceLink = (repository, evidence) => {
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository || '') || repository.split('/').some(p => p === '.' || p === '..') || !evidence.verifiedRevision || !/^[a-f0-9]{40}$/.test(evidence.revision || '') || !safeEntityPath(evidence.path) || !Number.isInteger(evidence.line) || evidence.line < 1 || !Number.isInteger(evidence.endLine) || evidence.endLine < evidence.line) return null
+  return `https://github.com/${repository}/blob/${evidence.revision}/${evidence.path.split('/').map(encodeURIComponent).join('/')}#L${evidence.line}-L${evidence.endLine}`
+}
+/** Never accept arbitrary response fields as browser context. */
+export const validateEntitySnapshot = value => {
+  object(value, ['version', 'identity', 'generatedAt', 'revision', 'workingTree', 'stale', 'entities', 'coverage', 'warnings', 'binding', 'governance', 'mode'], ['version', 'identity', 'entities', 'coverage'])
+  if (JSON.stringify(value).length > ENTITY_LIMITS.bytes) fail()
+  if (!/^[a-f0-9]{64}$/.test(value.identity || '')) fail()
+  const entities = structuredClone(value.entities)
+  for (const entity of entities) {
+    if (entity.identity !== undefined && !/^[a-f0-9]{64}$/.test(entity.identity)) fail()
+    for (const k of ['stale', 'conflict']) if (entity[k] !== undefined && typeof entity[k] !== 'boolean') fail()
+    delete entity.identity; delete entity.stale; delete entity.conflict
+    for (const ev of entity.evidence || []) { for (const k of ['verifiedCurrentContent', 'verifiedRevision']) if (ev[k] !== undefined && typeof ev[k] !== 'boolean') fail(); delete ev.verifiedCurrentContent; delete ev.verifiedRevision }
+  }
+  validateEntityMetadata({ version: value.version, entities, coverage: value.coverage })
+  if (value.generatedAt !== undefined && (typeof value.generatedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value.generatedAt) || !Number.isFinite(Date.parse(value.generatedAt)))) fail()
+  if (value.revision !== undefined && value.revision !== null && !/^[a-f0-9]{40}$/.test(value.revision)) fail()
+  if (value.workingTree !== undefined) text(value.workingTree)
+  if (value.binding !== undefined) text(value.binding)
+  if (value.stale !== undefined && typeof value.stale !== 'boolean') fail()
+  if (value.warnings !== undefined) list(value.warnings, text, 400)
+  if (value.governance !== undefined) validateEntityGovernance(value.governance)
+  if (value.mode !== undefined && !['local', 'static'].includes(value.mode)) fail()
+  return structuredClone(value)
+}
+export const createEntityClient = ({ fetchImpl = (...args) => fetch(...args), staticPath = '/data/entities.json' } = {}) => {
   const state = { snapshot: null, busy: false, error: '', selected: null, query: '', schemaOwner: '', consumer: '', workspace: '', supply: '', evidenceClass: '', coverage: '' }
   let pending = null
   const listeners = new Set(), notify = () => listeners.forEach(fn => fn())
@@ -85,12 +120,24 @@ export const createEntityClient = ({ fetchImpl = (...args) => fetch(...args) } =
     if (state.snapshot && !refresh) return Promise.resolve(state.snapshot)
     state.busy = true; state.error = ''; notify()
     pending = Promise.resolve().then(async () => {
-      const response = await fetchImpl('/api/pmo/entities', { method: refresh ? 'POST' : 'GET', cache: 'no-store' })
-      const body = await response.json()
-      if (!response.ok || body.snapshot?.version !== 1 || !Array.isArray(body.snapshot.entities)) throw Error('Entity metadata unavailable. Use the local PMO server and check public declarations.')
-      state.snapshot = body.snapshot
-      if (!body.snapshot.entities.some(e => e.id === state.selected)) state.selected = null
-      return body.snapshot
+      let snapshot
+      try {
+        const response = await fetchImpl('/api/pmo/entities', { method: refresh ? 'POST' : 'GET', cache: 'no-store' })
+        if (!response.ok) throw Error('unavailable')
+        snapshot = validateEntitySnapshot((await response.json()).snapshot)
+        snapshot.mode = 'local'
+      } catch {
+        // A failed refresh never replaces valid live results with an older build artifact.
+        if (state.snapshot || refresh || staticPath !== '/data/entities.json') throw Error('Entity metadata unavailable. Use the local PMO server and check public declarations.')
+        const response = await fetchImpl(staticPath, { cache: 'no-store' })
+        if (!response.ok) throw Error('Entity metadata unavailable.')
+        snapshot = validateEntitySnapshot(await response.json())
+        if (!snapshot.generatedAt) throw Error('Static entity metadata needs an artifact date.')
+        snapshot = { ...snapshot, mode: 'static', stale: true, workingTree: 'dated build artifact; local and production freshness unverified' }
+      }
+      state.snapshot = snapshot
+      if (!snapshot.entities.some(e => e.id === state.selected)) state.selected = null
+      return snapshot
     }).catch(error => { state.error = error.message; if (state.snapshot) state.snapshot = { ...state.snapshot, stale: true }; throw error }).finally(() => { state.busy = false; pending = null; notify() })
     return pending
   } }

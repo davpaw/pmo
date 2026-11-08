@@ -1,3 +1,26 @@
+## Browser compatibility 4.2.4 — 2026-11-08
+
+The browser accepts only closed validated public snapshot responses. Initial local
+endpoint failure may load the fixed dated public build artifact; refresh failures
+retain stale valid results and never substitute an older artifact. Static data is
+marked non-live and cannot establish field absence. An explicitly injected
+`publicMetadata` producer result undergoes the same bounded source/evidence checks
+as fixed JSON; a closed governance status/date projection excludes host review
+bodies and records. Host syntax producers remain outside PMO.
+
+Verified immutable source evidence can link through a trusted repository option;
+dirty/unverified evidence remains labelled with its hash, not a fabricated commit
+link. Clear/removed selections restore search focus; relationship inspection
+focuses the inspector. Both fields and explicit relationships have semantic tables.
+
+Verification: root `npm test` 281/281, production build and fresh validation pass.
+Isolated production preview localhost:4301 with generic intercepted metadata:
+keyboard Enter selects the list item, two semantic tables appear, clear selection
+restores search focus (confirmed activeElement) and status announces selection.
+No host metadata was exported. Static/canary/governance/citation cases are unit
+regressions; this is not a full VoiceOver audit or live production verification.
+The first browser reload timed out; a fresh tab successfully exercised the built
+viewer. Existing localhost:4299 was retained. No deployment commands were run.
 # Entity metadata browser and grounded PMO Agent — product plan
 
 ## Browser implementation contract (4.2.2)

@@ -2,12 +2,12 @@ import { lstatSync, realpathSync, openSync, readSync, closeSync, constants, fsta
 import { resolve, relative, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { ENTITY_LIMITS, safeEntityPath, validateEntityMetadata } from '../entities.js'
+import { ENTITY_LIMITS, safeEntityPath, validateEntityMetadata, validateEntityGovernance } from '../entities.js'
 import { pmoDirectory } from './paths.js'
 
 export const contentIdentity = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex')
 /** Fixed host-owned JSON binding. Never import a host adapter, evaluate source or enumerate data stores. */
-export function scanEntities({ root, now = () => new Date().toISOString() }) {
+export function scanEntities({ root, now = () => new Date().toISOString(), publicMetadata: suppliedMetadata, governance: suppliedGovernance }) {
   const boundary = realpathSync(root)
   let bytes = 0
   const read = (path, metadata = false) => {
@@ -32,8 +32,9 @@ export function scanEntities({ root, now = () => new Date().toISOString() }) {
   }
   const metadataPath = `${pmoDirectory(boundary)}/data/entities.json`
   let metadata
-  try { metadata = validateEntityMetadata(JSON.parse(read(metadataPath, true).toString('utf8'))) }
+  try { metadata = validateEntityMetadata(suppliedMetadata ?? JSON.parse(read(metadataPath, true).toString('utf8'))) }
   catch (error) { if (error.code !== 'ENOENT') throw error; metadata = { version: 1, entities: [], coverage: { unsupported: 0, skipped: 0, unresolved: 1, truncated: false } } }
+  const governance = suppliedGovernance === undefined ? undefined : validateEntityGovernance(suppliedGovernance)
   const coverage = { ...metadata.coverage }, warnings = [], sources = new Map()
   let revision = null
   try { revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: boundary, timeout: 2000, encoding: 'utf8', maxBuffer: 4096 }).trim() } catch { /* No commit is an explicit unknown. */ }
@@ -69,5 +70,5 @@ export function scanEntities({ root, now = () => new Date().toISOString() }) {
   }
   if (!metadata.entities.length) warnings.push('Field schema not recorded. No application or deployment schema was discovered.')
   const identity = contentIdentity({ metadata, coverage })
-  return { version: 1, identity, generatedAt: now(), revision, workingTree: 'working source included; evidence content and declared revision checked separately', stale: false, entities: metadata.entities, coverage, warnings, binding: metadataPath }
+  return { version: 1, identity: contentIdentity({ identity, governance }), generatedAt: now(), revision, workingTree: 'working source included; evidence content and declared revision checked separately', stale: false, entities: metadata.entities, coverage, warnings, binding: metadataPath, mode: 'local', ...(governance ? { governance } : {}) }
 }
