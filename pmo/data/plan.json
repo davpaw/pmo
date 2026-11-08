@@ -391,6 +391,18 @@
               "env": { "keys": [], "required": [], "services": [] },
               "acceptance": ["Field-presence answers cite an evidenced complete schema/version; logical-only or incomplete metadata returns unknown rather than universal absence", "Selected entity and explicit freeform names resolve safely; ambiguous variants require clarification and stale/delayed answers cannot silently switch identity", "Model sees bounded schema metadata only; forged context, arbitrary file reads, record access and schema/plan mutations are impossible through this feature", "Change requests yield reviewable text proposals identifying owners/privacy/import/consumer/migration/onboarding/testing impact; record-value questions are unavailable", "Local entity show/refresh works without model setup; standalone privacy/citation/context regressions and accessibility smoke checks pass"],
               "onboarding": "none"
+            },
+            {
+              "id": "4.2.4", "title": "Complete governed browser host compatibility", "summary": "Close browser-only delivery gaps found by an attached host: dated static fallback, bounded governance projection, injected public metadata producer scans, pinned safe source links and deterministic keyboard focus. No Agent or host data.",
+              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.2"],
+              "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
+              "effort": { "size": "M" },
+              "risk": { "level": "high", "notes": "Static freshness and injected metadata must not imply live production authority. Validate closed projections and retain local-only bounded scan boundary." },
+              "value": { "score": 5, "why": "Enables governed model-free browser attachment without generic forks." },
+              "tasks": ["Accept explicitly supplied validated public metadata in scanEntities; host producers remain outside PMO and execute only syntax parsing", "Validate bounded public governance dates/status diagnostics without rows or arbitrary context", "Add validated dated static fallback without claiming a current scan; retain stale snapshot on refresh failures", "Generate safe pinned citation links from trusted repository identity only; stale/dirty sources remain hash-labelled not mislinked", "Restore keyboard focus on clear, related selection and removed refresh; retain accessible role tables", "Run standalone tests, build, validate, scope and preview checks"],
+              "env": { "keys": [], "required": [], "services": [] },
+              "acceptance": ["Generic fixtures prove static fallback dates, malformed fallback rejection and stale retention", "Injected public producer metadata undergoes same evidence checks; bounded governance projection rejects unsafe text and unknown fields", "Source citations link only to verified immutable evidence with safe repository/path/range", "Keyboard focus and non-canvas field/relationship roles have regression and preview evidence", "No host records/configuration, Agent integration, schema mutation or deployment introduced"],
+              "onboarding": "none"
             }
           ]
         }
