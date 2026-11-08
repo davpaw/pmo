@@ -70,8 +70,23 @@ test('citation membership does not certify entailment; invalid citations and pri
   const result = resolveEntityQuestion({ snapshot: snapshot(), message: 'Does Person entity have a field for pronouns?' })
   assert.match(verifyEntityReply('It exists [forged/source]', result).reply, /withheld/)
   const plausible = verifyEntityReply('This proves everything [person:import/schema]', result)
-  assert.equal(plausible.unverified, true); assert.match(plausible.reply, /membership does not establish truth/)
+  assert.equal(plausible.unverified, true); assert.match(plausible.reply, /withheld/)
+  assert.doesNotMatch(plausible.reply, /This proves everything/)
   assert.match(verifyEntityReply('private@example.invalid', result).reply, /withheld/)
+})
+test('closed structured claims render server facts only and valid-citation production prose never survives', () => {
+  const s = snapshot(), result = resolveEntityQuestion({ snapshot: s, message: 'Explain Person schema' })
+  const claim = { kind: 'field', id: s.entities[0].fields[0].id, evidence: ['person:import/schema'] }
+  const valid = JSON.stringify({ version: 1, claims: [claim, { kind: 'ownership', id: 'person:import', evidence: claim.evidence }] })
+  const rendered = verifyEntityReply(valid, result).reply
+  assert.match(rendered, /Field .*required/); assert.match(rendered, /Declared schema owner/)
+  assert.match(rendered, /Production schema is unverified/)
+  for (const reply of ['Every production SIS has no pronouns [person:import/schema]', JSON.stringify({ version: 1, claims: [{ ...claim, value: 'FALSE_UNIVERSAL_CANARY' }] }), JSON.stringify({ version: 2, claims: [claim] }), JSON.stringify({ version: 1, claims: [{ ...claim, id: 'unrelated' }] }), JSON.stringify({ version: 1, claims: [{ ...claim, evidence: ['person:import/schema@old'] }] }), JSON.stringify({ version: 1, claims: [claim], narrative: 'FALSE_UNIVERSAL_CANARY' })]) {
+    const answer = verifyEntityReply(reply, result).reply
+    assert.match(answer, /withheld/); assert.doesNotMatch(answer, /Every production SIS|FALSE_UNIVERSAL_CANARY/)
+  }
+  s.entities[0].evidence[0].verifiedCurrentContent = false
+  assert.match(verifyEntityReply(valid, resolveEntityQuestion({ snapshot: s, message: 'Explain Person schema' })).reply, /withheld/)
 })
 test('tool-free provider sees only schema projection; change proposal instructions and no retained private history', async () => {
   const s = snapshot(), requests = []

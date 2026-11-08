@@ -428,7 +428,7 @@
             },
             {
               "id": "4.2.7", "title": "Enforce structured server-grounded entity answers", "summary": "HigherEd F01: valid citation membership does not entail model narrative. Render schema facts only from validated structured claims resolved to pinned server evidence; withhold unsupported prose rather than trusting disclaimers or keyword heuristics.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.6"],
+              "status": "complete", "completedAt": "2026-11-08", "evidence": ["pmo/src/agent/entity-context.js", "pmo/src/agent/entity-context.test.js"], "notes": "Closed bounded versioned claim selector renders only pinned server metadata with verified evidence. Raw prose and valid-citation universal assertions withheld, extra fields and old versions rejected; deterministic scoped field result and reviewed proposal guidance preserved. 287/287 standalone tests, build and fresh validation pass.", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.6"],
               "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
               "effort": { "size": "M" },
               "risk": { "level": "high", "notes": "Preserve useful arbitrary freeform prompts and clarifications without treating citation membership as production truth." },
