@@ -394,7 +394,7 @@
             },
             {
               "id": "4.2.4", "title": "Complete governed browser host compatibility", "summary": "Close browser-only delivery gaps found by an attached host: dated static fallback, bounded governance projection, injected public metadata producer scans, pinned safe source links and deterministic keyboard focus. No Agent or host data.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.2"],
+              "status": "complete", "completedAt": "2026-11-08", "evidence": ["pmo/src/entities.js", "pmo/src/entity-compat.test.js", "pmo/src/entities/viewer.jsx", "pmo/src/node/entity-scan.js", "pmo/src/node/entity-scan.test.js", "docs/ENTITY-BROWSER-PLAN.md"], "notes": "Root tests281/281, build/fresh validation and production preview generic fixture keyboard/table/search-focus pass. Closed dated fallback and public governance projection; injected syntax producer metadata retains source checks. No Agent/host data/configuration/deployment. Full VoiceOver not performed. PR/main exact-head gates delivery.", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.2"],
               "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
               "effort": { "size": "M" },
               "risk": { "level": "high", "notes": "Static freshness and injected metadata must not imply live production authority. Validate closed projections and retain local-only bounded scan boundary." },

@@ -30,6 +30,19 @@ test('missing metadata is unknown, not a complete empty schema', () => {
   const s = setup()
   try { rmSync(join(s.root, 'pmo/data/entities.json')); const snapshot = scanEntities(s); assert.equal(snapshot.entities.length, 0); assert.equal(snapshot.coverage.unresolved, 1) } finally { s.cleanup() }
 })
+test('explicit public producer input retains evidence checks and governed artifact date', () => {
+  const s = setup()
+  try {
+    rmSync(join(s.root, 'pmo/data/entities.json'))
+    const governance = { version: 1, generatedAt: '2026-11-07T12:00:00.000Z', mode: 'local', deployment: 'unverified', declarations: [] }
+    const first = scanEntities({ root: s.root, publicMetadata: s.metadata, governance })
+    assert.equal(first.entities[0].stale, false)
+    assert.equal(first.governance.generatedAt, governance.generatedAt)
+    writeFileSync(join(s.root, 'src/person.js'), 'throw Error("NEVER_EVALUATE")')
+    assert.equal(scanEntities({ root: s.root, publicMetadata: s.metadata, governance }).entities[0].stale, true)
+    assert.throws(() => scanEntities({ root: s.root, publicMetadata: { ...s.metadata, rows: ['ROW_CANARY'] } }))
+  } finally { s.cleanup() }
+})
 test('rejects metadata symlink and oversize; ignored and symlink evidence is unresolved', () => {
   const s = setup()
   try {
