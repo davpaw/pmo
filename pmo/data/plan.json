@@ -406,7 +406,7 @@
             },
             {
               "id": "4.2.5", "title": "Harden entity Agent snapshot validation and freeform resolution", "summary": "Correct substring variant matching, selected relationship narrowing across explicitly named entities and full snapshot/status/privacy validation before host integration. No host data.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.3", "4.2.4"],
+              "status": "complete", "completedAt": "2026-11-08", "evidence": ["pmo/src/agent/entity-context.js", "pmo/src/agent/entity-context.test.js", "pmo/src/agent/service.js"], "notes": "Full closed snapshot validation rejects private extras and nonboolean authority flags before transmission; ids and variants resolve at token boundaries and explicit entity switching discards unrelated relationship narrowing. Private unresolved input is rejected and retained schema turns are rechecked. Valid citations still never certify model narrative. Targeted14/14 and standalone full284/284 pass; production build passes. All providers are deterministic stubs, no external calls, host data, writes or deployment commands. Required exact-head CI and reviewed main delivery remain separate gates.", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.3", "4.2.4"],
               "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
               "effort": { "size": "M" },
               "risk": { "level": "high", "notes": "False source authority or private retained text must not reach a provider." },

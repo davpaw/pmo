@@ -239,6 +239,8 @@ export const createAgentService = ({ getConfig, loadKnowledge, loadEntities = nu
       // Context changes discard history before transmission, including retained record/private user text.
       const contextKey = grounding?.key || null
       if (session.entityKey !== contextKey) { session.history = []; session.entityKey = contextKey }
+      // Revalidate retained turns before transmission; private-looking provider text is never reused.
+      if (grounding) session.history = session.history.filter(turn => !privateEntityText(turn.content))
 
       const text = neutralise(message).trim()
       const flagged = looksLikeOverride(text)
