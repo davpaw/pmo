@@ -1,4 +1,4 @@
-import { validateEntityMetadata, fieldPresence } from '../entities.js'
+import { validateEntitySnapshot, fieldPresence } from '../entities.js'
 import { neutralise } from './prompt.js'
 
 const ID = /^[A-Za-z][A-Za-z0-9_.:-]{0,99}$/
@@ -10,11 +10,6 @@ export const validateEntityContextIds = context => {
   if (!context || typeof context !== 'object' || Array.isArray(context) || Object.keys(context).some(k => !['entityId', 'fieldId', 'relationshipId', 'snapshotIdentity'].includes(k)) || !ID.test(context.entityId) || !/^[a-f0-9]{64}$/.test(context.snapshotIdentity) || ['fieldId', 'relationshipId'].some(k => context[k] !== undefined && !ID.test(context[k]))) throw Error('Send only stable entity/field/relationship ids and snapshot identity.')
   return { ...context }
 }
-/** Validate server snapshots again before transmission; derived facts cannot smuggle arbitrary context. */
-const publicMetadata = snapshot => validateEntityMetadata({ version: snapshot.version, coverage: snapshot.coverage, entities: snapshot.entities.map(e => ({
-  ...Object.fromEntries(['id', 'name', 'aliases', 'variant', 'evidenceClass', 'schemaOwner', 'steward', 'consumers', 'workspaces', 'supply', 'sourceSystem', 'privacy', 'coverage', 'fields', 'relationships', 'override'].map(k => [k, e[k]])),
-  evidence: e.evidence.map(ev => Object.fromEntries(['id', 'path', 'line', 'endLine', 'symbol', 'sha256', 'revision', 'schemaVersion'].map(k => [k, ev[k]]))),
-})) })
 const words = text => text.toLowerCase().match(/[a-z0-9_]+/g) || []
 const mentions = (message, name) => {
   const haystack = words(message), needle = words(name)
@@ -22,7 +17,8 @@ const mentions = (message, name) => {
 }
 export function resolveEntityQuestion({ snapshot, context, message }) {
   let selected
-  try { context = validateEntityContextIds(context); publicMetadata(snapshot) } catch { return error(400, 'Invalid public metadata or entity context. Refresh and check declarations.') }
+  try { context = validateEntityContextIds(context); snapshot = validateEntitySnapshot(snapshot) } catch { return error(400, 'Invalid public metadata or entity context. Refresh and check declarations.') }
+  if (privateEntityText(message)) return error(400, 'Do not send private values or credentials to schema chat.')
   if (!/^[a-f0-9]{64}$/.test(snapshot.identity)) return error(503, 'Entity snapshot identity unavailable.')
   if (context) {
     if (context.snapshotIdentity !== snapshot.identity || snapshot.stale) return error(409, 'Entity context is stale. Refresh and select the entity again.')
@@ -30,7 +26,7 @@ export function resolveEntityQuestion({ snapshot, context, message }) {
     if (!selected || (context.fieldId && !selected.fields.some(f => f.id === context.fieldId)) || (context.relationshipId && !selected.relationships.some(r => r.id === context.relationshipId))) return error(400, 'Unknown entity context ids. Refresh and select again.')
   }
   const explicit = snapshot.entities.filter(e => [e.name, e.id, ...e.aliases].some(name => mentions(message, name)))
-  const exact = snapshot.entities.filter(e => message.toLowerCase().includes(e.id.toLowerCase()) || message.toLowerCase().includes(e.variant.toLowerCase()))
+  const exact = snapshot.entities.filter(e => mentions(message, e.id) || mentions(message, e.variant))
   let candidates = exact.length ? exact : explicit
   if (!candidates.length && selected) candidates = [selected]
   if (!candidates.length) return context || /\b(entity|schema|field|pronouns)\b/i.test(message) ? { localReply: 'Entity schema metadata is missing or the name is unresolved. Select an entity or name a recorded scoped variant; field support is unknown.' } : null
@@ -49,7 +45,7 @@ export function resolveEntityQuestion({ snapshot, context, message }) {
     id: entity.id, variant: entity.variant, evidenceClass: entity.evidenceClass, fieldCoverage: missing ? 'unverified' : entity.coverage,
     schemaOwner: entity.schemaOwner, steward: entity.steward, consumers: entity.consumers, workspaces: entity.workspaces,
     privacy: entity.privacy, fields: entity.fields.filter(f => !field || f.name === field).map(f => ({ id: f.id, name: f.name, type: f.type, required: f.required, nullable: f.nullable, key: f.key, privacy: f.privacy, evidence: f.evidence.map(id => `${entity.id}/${id}`) })),
-    relationships: entity.relationships.filter(r => !context?.relationshipId || r.id === context.relationshipId).map(r => ({ ...r, evidence: r.evidence.map(id => `${entity.id}/${id}`) })),
+    relationships: entity.relationships.filter(r => context?.entityId !== entity.id || !context?.relationshipId || r.id === context.relationshipId).map(r => ({ ...r, evidence: r.evidence.map(id => `${entity.id}/${id}`) })),
     evidence, fieldQuestion: field || null, fieldAnswer: fact, productionVerified: false,
   }
   const payload = JSON.stringify(grounding)

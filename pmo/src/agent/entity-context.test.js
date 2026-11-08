@@ -13,6 +13,38 @@ import assert from 'node:assert/strict'
 import { fixture } from '../entities.test.js'
 import { resolveEntityQuestion, verifyEntityReply, validateEntityContextIds } from './entity-context.js'
 import { createAgentService } from './service.js'
+test('closed full snapshots reject private extra fields and malformed authority flags', () => {
+  for (const patch of [{ stale: 'false' }, { conflict: 'false' }, { private: 'PRIVATE_CANARY' }]) {
+    const s = snapshot(); Object.assign(s.entities[0], patch)
+    assert.equal(resolveEntityQuestion({ snapshot: s, context: context(s), message: 'Explain this schema' }).status, 400)
+  }
+  for (const patch of [{ verifiedCurrentContent: 'true' }, { verifiedRevision: 1 }]) {
+    const s = snapshot(); Object.assign(s.entities[0].evidence[0], patch)
+    assert.equal(resolveEntityQuestion({ snapshot: s, message: 'Explain Person schema' }).status, 400)
+  }
+  const s = snapshot(); s.private = 'PRIVATE_CANARY'
+  assert.equal(resolveEntityQuestion({ snapshot: s, message: 'Explain Person schema' }).status, 400)
+})
+test('variant names cannot match substrings and explicit switching drops relationship narrowing', () => {
+  const s = snapshot(), other = structuredClone(s.entities[0])
+  other.id = 'course:import'; other.name = 'Course'; other.aliases = []; other.variant = 'Other artifact'
+  other.relationships = [{ id: 'course-owner', target: s.entities[0].id, field: null, targetField: null, cardinality: null, evidence: [other.evidence[0].id] }]
+  s.entities[0].relationships = [{ ...other.relationships[0], id: 'person-course', target: other.id }]
+  s.entities.push(other)
+  const switched = resolveEntityQuestion({ snapshot: s, context: { ...context(s), relationshipId: 'person-course' }, message: 'Explain Course relationships' })
+  assert.equal(switched.pin.entityId, other.id); assert.match(switched.prompt, /course-owner/)
+  assert.equal(resolveEntityQuestion({ snapshot: s, context: context(s), message: 'Other artifactual discussion' }).pin.entityId, s.entities[0].id)
+  const second = structuredClone(other); second.id = 'course:demo'; second.variant = 'Demo artifact'; s.entities.push(second)
+  assert.match(resolveEntityQuestion({ snapshot: s, message: 'Explain course:imported schema' }).localReply, /Clarify/)
+})
+test('private unresolved input cannot bypass schema privacy and malformed provider replies fail safely', async () => {
+  assert.equal(resolveEntityQuestion({ snapshot: snapshot(), message: 'Unresolved secret=PRIVATE_CANARY' }).status, 400)
+  for (const response of [{ ok: true, status: 200, json: async () => { throw Error('MALFORMED_CANARY') } }, { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: {} } }] }) }, { ok: false, status: 503 }]) {
+    const service = createAgentService({ getConfig: () => ({ configured: true, baseUrl: 'https://fixture.invalid/v1', model: 'fixture', secret: () => 'fixture', timeoutMs: 1000 }), loadKnowledge: () => '', loadEntities: async () => snapshot(), fetchImpl: async () => response })
+    const result = await service.ask({ message: 'Explain Person schema' })
+    assert.equal(result.ok, false); assert.equal(result.status, 502); assert.equal(JSON.stringify(result).includes('MALFORMED_CANARY'), false)
+  }
+})
 const snapshot = () => ({ ...fixture(), identity: 'b'.repeat(64), stale: false, entities: fixture().entities.map(e => ({ ...e, stale: false, conflict: false, evidence: e.evidence.map(ev => ({ ...ev, verifiedCurrentContent: true })) })) })
 const context = s => ({ entityId: s.entities[0].id, snapshotIdentity: s.identity })
 test('freeform question resolves explicit entity and scopes absence, partial metadata stays unknown', () => {
