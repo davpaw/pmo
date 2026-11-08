@@ -70,5 +70,8 @@ export function scanEntities({ root, now = () => new Date().toISOString(), publi
   }
   if (!metadata.entities.length) warnings.push('Field schema not recorded. No application or deployment schema was discovered.')
   const identity = contentIdentity({ metadata, coverage })
-  return { version: 1, identity: contentIdentity({ identity, governance }), generatedAt: now(), revision, workingTree: 'working source included; evidence content and declared revision checked separately', stale: false, entities: metadata.entities, coverage, warnings, binding: metadataPath, mode: 'local', ...(governance ? { governance } : {}) }
+  // Scan dates are provenance, not authority. Keep every validated governance
+  // field except generatedAt in the digest; retain the original dated projection.
+  const authority = governance && { version: governance.version, mode: governance.mode, deployment: governance.deployment, declarations: governance.declarations }
+  return { version: 1, identity: contentIdentity({ identity, governance: authority }), generatedAt: now(), revision, workingTree: 'working source included; evidence content and declared revision checked separately', stale: false, entities: metadata.entities, coverage, warnings, binding: metadataPath, mode: 'local', ...(governance ? { governance } : {}) }
 }

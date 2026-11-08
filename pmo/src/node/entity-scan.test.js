@@ -7,6 +7,10 @@ import { execFileSync } from 'node:child_process'
 import { fixture } from '../entities.test.js'
 import { scanEntities, contentIdentity } from './entity-scan.js'
 import { createEntityMiddleware, createEntityService, runEntityScan } from './entity-http.js'
+import { resolveEntityQuestion } from '../agent/entity-context.js'
+import { createAgentService } from '../agent/service.js'
+import { createAgentMiddleware } from './agent-http.js'
+import { createServer } from 'node:http'
 const setup = () => {
   const root = mkdtempSync(join(tmpdir(), 'pmo-entity-'))
   execFileSync('git', ['init', '-q', root]); mkdirSync(join(root, 'pmo/data'), { recursive: true }); mkdirSync(join(root, 'src'))
@@ -43,6 +47,29 @@ test('explicit public producer input retains evidence checks and governed artifa
     assert.throws(() => scanEntities({ root: s.root, publicMetadata: { ...s.metadata, rows: ['ROW_CANARY'] } }))
   } finally { s.cleanup() }
 })
+test('scan dates preserve authority identity while every declaration and source drift rejects the old pin', () => {
+  const s = setup()
+  try {
+    const governance = { version: 1, generatedAt: '2026-11-07T12:00:00.000Z', mode: 'local', deployment: 'unverified', declarations: [{ entityId: 'person:import', status: 'reviewed v1' }] }
+    const scan = (patch = {}) => scanEntities({ root: s.root, publicMetadata: s.metadata, governance, ...patch })
+    const first = scan({ now: () => governance.generatedAt })
+    governance.generatedAt = '2026-11-08T12:00:00.000Z'
+    const next = scan({ now: () => governance.generatedAt })
+    assert.equal(next.identity, first.identity)
+    assert.notEqual(next.generatedAt, first.generatedAt)
+    assert.notEqual(next.governance.generatedAt, first.governance.generatedAt)
+    const context = { entityId: first.entities[0].id, snapshotIdentity: first.identity }
+    const resolve = snapshot => resolveEntityQuestion({ snapshot, context, message: 'Explain this schema' })
+    assert.equal(resolve(next).pin.snapshotIdentity, first.identity)
+    for (const patch of [{ mode: 'static' }, { declarations: [{ entityId: 'person:import', status: 'reviewed v2' }] }, { declarations: [] }]) {
+      assert.equal(resolve(scan({ governance: { ...governance, ...patch } })).status, 409)
+    }
+    for (const mutate of [() => { s.metadata.entities[0].variant = 'v2' }, () => { s.metadata.entities[0].evidence[0].revision = '0'.repeat(40) }, () => { writeFileSync(join(s.root, 'src/person.js'), 'changed') }, () => { rmSync(join(s.root, 'src/person.js')) }]) {
+      mutate(); assert.equal(resolve(scan()).status, 409)
+    }
+    assert.throws(() => scan({ governance: { ...governance, generatedAt: 'not-a-date' } }))
+  } finally { s.cleanup() }
+})
 test('rejects metadata symlink and oversize; ignored and symlink evidence is unresolved', () => {
   const s = setup()
   try {
@@ -67,6 +94,23 @@ test('reviewed overrides are separate conflicts, stale base identity stays unkno
 })
 test('bounded worker loads generic metadata', async () => {
   const s = setup(); try { assert.equal((await runEntityScan(s.root)).entities[0].name, 'Person') } finally { s.cleanup() }
+})
+test('real HTTP fresh dated selected context reaches provider with the original authority pin', async t => {
+  const s = setup(); t.after(s.cleanup)
+  let date = '2026-11-07T12:00:00.000Z'
+  const scan = () => scanEntities({ root: s.root, publicMetadata: s.metadata, now: () => date, governance: { version: 1, generatedAt: date, mode: 'local', deployment: 'unverified', declarations: [] } })
+  const selected = scan(); date = '2026-11-08T12:00:00.000Z'
+  const requests = []
+  const service = createAgentService({ getConfig: () => ({ configured: true, provider: 'openai', model: 'fixture', baseUrl: 'https://fixture.invalid/v1', secret: () => 'fixture', timeoutMs: 1000, maxTokens: 100 }), loadKnowledge: () => 'public plan', loadEntities: scan, fetchImpl: async (_, request) => { requests.push(JSON.parse(request.body)); return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'Schema [person:import/schema]' } }] }) } } })
+  const middleware = createAgentMiddleware({ service })
+  const server = createServer((req, res) => middleware(req, res, () => { res.statusCode = 404; res.end() }))
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/agent/ask`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Explain this schema', entityContext: { entityId: selected.entities[0].id, snapshotIdentity: selected.identity } }) })
+    assert.equal(response.status, 200)
+    assert.equal((await response.json()).entityPin.snapshotIdentity, selected.identity)
+    assert.equal(requests.length, 1); assert.equal(requests[0].tools, undefined)
+  } finally { await new Promise(resolve => server.close(resolve)) }
 })
 test('declared revisions require reachable matching content, not hash-shaped text', () => {
   const s = setup()
