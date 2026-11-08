@@ -414,6 +414,28 @@
               "tasks": ["Validate full public snapshots and context ids; stale conflicting unsupported truncated evidence cannot grant complete authority", "Resolve explicit names and variants with token boundaries; discard unrelated selected field and relationship; clarify ambiguity", "Keep model narrative unverified and exact citation membership checked; reject private current and retained turns and malformed provider replies", "Test freeform paraphrases adversarial schemas citations context/session switching and provider failures without external calls"],
               "acceptance": ["Closed snapshot/status validation rejects malformed metadata before provider transmission", "Explicit resolution cannot match substrings or inherit unrelated selected field/relationship", "Private current/retained turns are rejected or withheld and model narrative remains unverified", "Standalone deterministic tests and required CI pass"],
               "onboarding": "none"
+            },
+            {
+              "id": "4.2.6", "title": "Separate stable entity authority identity from scan time", "summary": "HigherEd F02: governance generation timestamps invalidate unchanged selected contexts. Keep dated scan provenance separate from stable identity and preserve drift rejection.",
+              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.5"],
+              "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
+              "effort": { "size": "M" },
+              "risk": { "level": "high", "notes": "Fail closed on source/declaration/version/revision drift; never ignore authority-bearing metadata." },
+              "value": { "score": 5, "why": "Restores fresh selected-context requests without weakening provenance." },
+              "tasks": ["Reproduce consecutive governance scan identity drift", "Exclude only governance generatedAt from authority digest while preserving original visible dates and all validated authority fields", "Test current selected-context provider transport and changed/deleted source, declaration/version, mode and revision rejection", "Run full standalone tests, build, plan checks and exact-head CI; verify main merge"],
+              "env": { "keys": [], "required": [], "services": [] },
+              "acceptance": ["Unchanged metadata at different scan dates retains identical snapshot identity and distinct displayed dates", "Source bytes/deletion, declaration/version, evidence revisions and governance authority changes invalidate context", "Private/forged/stale context and retained history remain fail closed", "Real HTTP selected context reaches provider with original stable pin"]
+            },
+            {
+              "id": "4.2.7", "title": "Enforce structured server-grounded entity answers", "summary": "HigherEd F01: valid citation membership does not entail model narrative. Render schema facts only from validated structured claims resolved to pinned server evidence; withhold unsupported prose rather than trusting disclaimers or keyword heuristics.",
+              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.6"],
+              "scope": { "docs": ["docs/ENTITY-BROWSER-PLAN.md"] },
+              "effort": { "size": "M" },
+              "risk": { "level": "high", "notes": "Preserve useful arbitrary freeform prompts and clarifications without treating citation membership as production truth." },
+              "value": { "score": 5, "why": "Prevents unsupported production assertions displayed as answers." },
+              "tasks": ["Define closed structured claim protocol and deterministic renderer with explicit scope and unknown deployment authority", "Accept bounded field/entity/relationship/ownership claims only when server metadata proves them; reject raw narrative and forged/versioned citations", "Preserve freeform question resolution and useful deterministic schema details, clarification and safe reviewed change guidance", "Test adversarial valid-citation universal claims, incomplete/stale cases, unrelated fields and retained-history safety", "Run standalone full tests/build/guard and exact-head CI, verify merged delivery"],
+              "env": { "keys": [], "required": [], "services": [] },
+              "acceptance": ["False universal production prose with valid citation never appears in answer or retained history", "Displayed claims are deterministically grounded in pinned artifact scope, not model prose or keyword semantic checks", "CSV absence is scoped and cited; incomplete/stale/deployment scope remains unknown", "Arbitrary freeform questions, clarification and safe proposal guidance remain useful", "Required standalone tests and exact-head CI pass"]
             }
           ]
         }
