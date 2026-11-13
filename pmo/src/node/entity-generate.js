@@ -1,9 +1,10 @@
-import { lstatSync, openSync, readSync, closeSync, fstatSync, readdirSync, readFileSync, writeFileSync, existsSync, realpathSync, constants } from 'node:fs'
+import { lstatSync, openSync, readSync, closeSync, fstatSync, readdirSync, realpathSync, constants } from 'node:fs'
 import { resolve, relative, sep, posix } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { ENTITY_LIMITS, safeEntityPath, validateEntityMetadata } from '../entities.js'
 import { contentIdentity } from './entity-scan.js'
 import { pmoDirectory } from './paths.js'
+import { assembleEntities, documentTexts, existingEntityFiles, isStoreEntity, writeAssembled } from './entity-assemble.js'
 
 /**
  * Producer for the fixed host binding pmo/data/entities.json.
@@ -174,7 +175,7 @@ export const expandSources = (boundary, configured) => {
   return { paths: [...paths].sort(), skipped }
 }
 
-const readSource = (boundary, path, budget) => {
+export const readSource = (boundary, path, budget) => {
   const full = resolve(boundary, path), rel = relative(boundary, full)
   if (!rel || rel === '..' || rel.startsWith(`..${sep}`)) throw Error('Outside root.')
   let part = boundary
@@ -206,16 +207,14 @@ export const generateEntities = ({ root, project = {} }) => {
   const result = entitiesFromSources(sources)
   const coverage = result.metadata.coverage
   coverage.skipped += unreadable; if (truncated) coverage.truncated = true
-  const metadata = validateEntityMetadata({ ...result.metadata, coverage })
+  const literal = validateEntityMetadata({ ...result.metadata, coverage })
+  // Entities from `entities introspect` (store:*) and their persistence variants are carried forward untouched.
+  const files = existingEntityFiles(root, project)
+  const stores = { entities: files.metadata?.entities.filter(isStoreEntity) ?? [], variants: files.persistence?.variants.filter(v => v.entityId.startsWith('store:')) ?? [] }
+  const assembled = assembleEntities({ literal, stores, previous: files.persistence })
   const target = `${pmoDirectory(boundary, project)}/data/entities.json`
-  return { metadata, notes: [...notes, ...result.notes], target, text: `${JSON.stringify(metadata, null, 2)}\n`, files: sources.length }
+  return { metadata: assembled.metadata, notes: [...notes, ...result.notes], target, ...documentTexts(assembled), files: sources.length, entityFiles: files }
 }
 
-/** Write, or with check only compare. Returns { changed, missing }. */
-export const writeEntities = ({ root, result, check = false }) => {
-  const file = resolve(realpathSync(root), result.target)
-  const missing = !existsSync(file)
-  const changed = missing || readFileSync(file, 'utf8') !== result.text
-  if (changed && !check) writeFileSync(file, result.text)
-  return { changed, missing, file: posix.normalize(result.target) }
-}
+/** Write, or with check only compare. Returns { changed, missing, file }. */
+export const writeEntities = ({ result, check = false }) => ({ ...writeAssembled({ files: result.entityFiles, texts: result, check }), file: posix.normalize(result.target) })

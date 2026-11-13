@@ -3,7 +3,7 @@ import { resolve, relative, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { ENTITY_LIMITS, safeEntityPath, validateEntityMetadata, validateEntityGovernance } from '../entities.js'
-import { negotiatePersistence } from '../entity-persistence.js'
+import { negotiatePersistence, isStoreEvidence } from '../entity-persistence.js'
 import { pmoDirectory } from './paths.js'
 
 export const contentIdentity = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex')
@@ -89,6 +89,8 @@ export function scanEntities({ root, now = () => new Date().toISOString(), publi
         for (const variant of document.variants) {
           const entry = { entityId: variant.entityId, stale: false, evidence: [] }
           for (const ev of variant.evidence) {
+            // Introspected or declared store evidence has no source hash to verify; it is never reported as verified content.
+            if (isStoreEvidence(ev)) { entry.evidence.push({ id: ev.id, verifiedCurrentContent: false }); continue }
             if (sources.size >= 200 && !sources.has(ev.path)) { entry.stale = true; coverage.truncated = true; coverage.skipped++; entry.evidence.push({ id: ev.id, verifiedCurrentContent: false }); continue }
             if (!sources.has(ev.path)) {
               try { const source = read(ev.path); sources.set(ev.path, { hash: contentIdentity(source), lines: source.toString('utf8').split('\n').length }) }

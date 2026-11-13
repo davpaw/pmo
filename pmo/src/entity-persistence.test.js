@@ -63,7 +63,7 @@ test('a hypothesis dependency needs no evidence but observed and reviewed edges 
 test('version negotiation is explicit, value-free and fails closed', () => {
   const metadata = validateEntityMetadata(base())
   assert.deepEqual(negotiatePersistence(undefined, metadata), { status: 'absent', persistence: null })
-  const future = { ...extension(), version: 2, secret: 'CANARY_SECRET' }
+  const future = { ...extension(), version: 3, secret: 'CANARY_SECRET' }
   const result = negotiatePersistence(future, metadata)
   assert.deepEqual(result, { status: 'unsupported-version', persistence: null }); assert.ok(!JSON.stringify(result).includes('CANARY'))
   assert.equal(negotiatePersistence({ ...extension(), extension: 'other' }, metadata).status, 'invalid')

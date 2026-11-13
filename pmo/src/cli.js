@@ -22,6 +22,7 @@ import { commandAgent } from './node/agent-setup.js'
 import { commandPlan } from './node/plan-command.js'
 import { commandRelease } from './node/release.js'
 import { generateEntities, writeEntities } from './node/entity-generate.js'
+import { introspectEntities, writeIntrospected } from './node/entity-introspect.js'
 import { releaseManifestProblems } from './release-policy.js'
 
 export const PLAN_PATH = 'pmo/data/plan.json'
@@ -178,16 +179,22 @@ const fail = (out, message) => {
   return 1
 }
 
-const commandEntities = ({ root, data, args, out }) => {
-  if (args.positional[1] !== 'generate') return fail(out, 'Usage: pmo entities generate [--check]')
+const commandEntities = async ({ root, data, args, out }) => {
+  const action = args.positional[1]
+  if (!['generate', 'introspect'].includes(action)) return fail(out, 'Usage: pmo entities generate|introspect [--check]')
+  const check = args.flags.check === true
   let result
-  try { result = generateEntities({ root, project: data.project }) } catch (error) { return fail(out, error.message) }
-  const { changed, missing, file } = writeEntities({ root, result, check: args.flags.check === true })
+  try { result = action === 'generate' ? generateEntities({ root, project: data.project }) : await introspectEntities({ root, project: data.project }) }
+  catch (error) { return fail(out, action === 'introspect' && !error.refusal ? 'Introspection failed; no files were changed.' : error.message) }
+  const { changed, missing, file } = action === 'generate' ? writeEntities({ result, check }) : writeIntrospected({ result, check })
   for (const note of result.notes) out.log(`note: ${note}`)
   const { metadata } = result
-  out.log(`${metadata.entities.length} entit${metadata.entities.length === 1 ? 'y' : 'ies'} from ${result.files} source file(s); ${metadata.entities.filter(e => e.coverage === 'complete').length} complete; unresolved ${metadata.coverage.unresolved}, skipped ${metadata.coverage.skipped}${metadata.coverage.truncated ? ', truncated' : ''}.`)
-  if (args.flags.check) {
-    if (changed) return fail(out, `${file} is ${missing ? 'missing' : 'out of date'}. Run: npm run pmo -- entities generate`)
+  const complete = metadata.entities.filter(e => e.coverage === 'complete').length
+  out.log(action === 'generate'
+    ? `${metadata.entities.length} entit${metadata.entities.length === 1 ? 'y' : 'ies'} from ${result.files} source file(s); ${complete} complete; unresolved ${metadata.coverage.unresolved}, skipped ${metadata.coverage.skipped}${metadata.coverage.truncated ? ', truncated' : ''}.`
+    : `${metadata.entities.filter(e => e.id.startsWith('store:')).length} store entit${metadata.entities.filter(e => e.id.startsWith('store:')).length === 1 ? 'y' : 'ies'} from ${result.stores} store(s); introspected facts are unverified local-development schema, never deployment truth.`)
+  if (check) {
+    if (changed) return fail(out, `${file} is ${missing ? 'missing' : 'out of date'}. Run: npm run pmo -- entities ${action}`)
     out.log(`${file} is current.`)
     return 0
   }
@@ -378,6 +385,7 @@ const HELP = `pmo - Program management
   prs [sync|status]                  Refresh/show PR decisions and delivery
   agent [status|setup|prompt]        Configure the Ask the PMO Agent window (key stays in .env.local)
   entities generate [--check]        Write pmo/data/entities.json from literal CREATE TABLE in project.json entitySources (--check: fail if stale)
+  entities introspect [--check]      Local development only: add schema-only entities from project.json entityStores (SQLite, loopback Postgres, declared Redis patterns)
   plan template|add|set|remove|epic|workstream  Change the plan without hand-editing plan.json (plan/ branch; see pmo plan)`
 
 /** @returns {Promise<number>} exit code */
