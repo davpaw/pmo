@@ -1,3 +1,4 @@
+import { validatePersistenceSnapshot } from './entity-persistence.js'
 /** Public metadata v1. Closed schema: no values, executable adapters or arbitrary context. */
 export const ENTITY_LIMITS = Object.freeze({ bytes: 512 * 1024, entities: 200, fields: 100, relationships: 100, evidence: 20 })
 export const EVIDENCE_CLASSES = ['logical', 'import', 'schema', 'demo', 'deployment-unverified']
@@ -13,19 +14,22 @@ const id = value => { if (typeof value !== 'string' || !ID.test(value)) fail() }
 const list = (value, check, max) => { if (!Array.isArray(value) || value.length > max) fail(); value.forEach(check) }
 const unique = values => { if (new Set(values).size !== values.length) fail() }
 const bool = value => { if (value !== null && typeof value !== 'boolean') fail() }
+/** Shared closed validators for the v1 contract and its optional extensions. */
+export const entityValidators = Object.freeze({ fail, object, text, id, list, unique, bool })
+export const validateEntityEvidence = ev => {
+  object(ev, ['id', 'path', 'line', 'endLine', 'symbol', 'sha256', 'revision', 'schemaVersion'])
+  id(ev.id); if (!safeEntityPath(ev.path)) fail()
+  if (!Number.isInteger(ev.line) || ev.line < 1 || !Number.isInteger(ev.endLine) || ev.endLine < ev.line || ev.endLine > 1000000) fail()
+  text(ev.symbol); text(ev.schemaVersion, true)
+  if (!/^[a-f0-9]{64}$/.test(ev.sha256) || (ev.revision !== null && !/^[a-f0-9]{40}$/.test(ev.revision))) fail()
+}
 export const validateEntityMetadata = value => {
   object(value, ['version', 'entities', 'coverage'])
   if (value.version !== 1 || JSON.stringify(value).length > ENTITY_LIMITS.bytes) fail()
   object(value.coverage, ['unsupported', 'skipped', 'unresolved', 'truncated'])
   for (const k of ['unsupported', 'skipped', 'unresolved']) if (!Number.isInteger(value.coverage[k]) || value.coverage[k] < 0 || value.coverage[k] > 10000) fail()
   if (typeof value.coverage.truncated !== 'boolean') fail()
-  const evidence = ev => {
-    object(ev, ['id', 'path', 'line', 'endLine', 'symbol', 'sha256', 'revision', 'schemaVersion'])
-    id(ev.id); if (!safeEntityPath(ev.path)) fail()
-    if (!Number.isInteger(ev.line) || ev.line < 1 || !Number.isInteger(ev.endLine) || ev.endLine < ev.line || ev.endLine > 1000000) fail()
-    text(ev.symbol); text(ev.schemaVersion, true)
-    if (!/^[a-f0-9]{64}$/.test(ev.sha256) || (ev.revision !== null && !/^[a-f0-9]{40}$/.test(ev.revision))) fail()
-  }
+  const evidence = validateEntityEvidence
   list(value.entities, entity => {
     object(entity, ['id', 'name', 'aliases', 'variant', 'evidenceClass', 'schemaOwner', 'steward', 'consumers', 'workspaces', 'supply', 'sourceSystem', 'privacy', 'coverage', 'evidence', 'fields', 'relationships', 'override'])
     id(entity.id); text(entity.name); text(entity.variant)
@@ -90,7 +94,7 @@ export const entityEvidenceLink = (repository, evidence) => {
 }
 /** Never accept arbitrary response fields as browser context. */
 export const validateEntitySnapshot = value => {
-  object(value, ['version', 'identity', 'generatedAt', 'revision', 'workingTree', 'stale', 'entities', 'coverage', 'warnings', 'binding', 'governance', 'mode'], ['version', 'identity', 'entities', 'coverage'])
+  object(value, ['version', 'identity', 'generatedAt', 'revision', 'workingTree', 'stale', 'entities', 'coverage', 'warnings', 'binding', 'governance', 'mode', 'persistence'], ['version', 'identity', 'entities', 'coverage'])
   if (JSON.stringify(value).length > ENTITY_LIMITS.bytes) fail()
   if (!/^[a-f0-9]{64}$/.test(value.identity || '')) fail()
   const entities = structuredClone(value.entities)
@@ -109,6 +113,7 @@ export const validateEntitySnapshot = value => {
   if (value.warnings !== undefined) list(value.warnings, text, 400)
   if (value.governance !== undefined) validateEntityGovernance(value.governance)
   if (value.mode !== undefined && !['local', 'static'].includes(value.mode)) fail()
+  if (value.persistence !== undefined) validatePersistenceSnapshot(value.persistence, { entities })
   return structuredClone(value)
 }
 export const createEntityClient = ({ fetchImpl = (...args) => fetch(...args), staticPath = '/data/entities.json' } = {}) => {

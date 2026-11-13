@@ -218,3 +218,28 @@ Decided 2026-11-13 by the owner. This narrows the "no database reads" rule above
 - **Still prohibited everywhere:** schema writes, row or value reads, production reach, executable host plugins.
 
 Step 4.2.13 implements exactly this and must reject anything outside it.
+
+## Persistence extension v1 — format and negotiation (4.2.8)
+
+Implemented in `pmo/src/entity-persistence.js` (pure, browser-safe) and read by `pmo/src/node/entity-scan.js`. Entity v1 is unchanged: `entities.json` still rejects unknown keys, so an older consumer never sees the extension and shows legacy metadata with persistence unknown.
+
+**Binding.** An optional host file `<pmo>/data/entities.persistence.json`, read by the same bounded reader (no symlinks, no ignored files, 512 KiB, evidence files shared with the 200-file and 2 MiB budgets). `base.metadataIdentity` is the SHA-256 of the declared entity v1 metadata; a different value yields `stale-base`.
+
+**Negotiation (`negotiatePersistence`).** It never throws and the status carries no input text: `absent` (legacy, persistence unknown), `unsupported-version` (accepted versions: `[1]`), `invalid` (malformed, over limits, dangling references, symlinked or unreadable file), `stale-base`, `current`. Every status but `current` contributes no facts and adds a snapshot warning. A `current` extension joins the snapshot identity, so Agent context pinning changes when it changes; without an extension the v1 identity is byte-identical to before.
+
+**Document keys (closed, all required).** `extension: "persistence"`, `version`, `base`, `variants`, `dependencies`, `assessment`.
+- `variants[]` (per entity variant, one per `entityId`): `entityId`, `owner`, `steward`, `backend` (`sqlite|postgres|mysql|document|key-value|file|memory|api|unknown`), `resource` (public resource name or logical key pattern), `layers`, `fields`, `indexes`, `migrations`, `serializers`, `evidence`.
+- `layers[]` (one per kind, `physical-ddl|payload|logical|import|demo|customer`): `kind`, `coverage` (`complete|partial|not-recorded`), `evidence`, `limitations`. Deployment is deliberately not a layer: production verification is always unknown.
+- `fields[]`: `fieldId` (an entity v1 field id), `layer`, `required` and `nullable` (true, false or null = unknown), `missing` (`omitted|null|either|unknown`), `constraints`, `key`, `evidence`.
+- `indexes[]`: `id`, `name`, `columns` (field ids declared in the same layer), `unique`, `layer`, `evidence`. `migrations[]`: `id`, `order` (strictly ascending, unique), `summary`, `evidence`. `serializers[]`: `id`, `role` (`serializer|reader|writer`), `symbol`, `evidence`.
+- `evidence[]` is the entity v1 evidence record (safe JS/TS/JSON path, line range, SHA-256, optional revision, schema version). SQL files remain unsupported paths; literal DDL embedded in JS/TS is the supported source.
+- `dependencies[]`: `id`, `from`, `to`, `kind` (`reads|writes|references|derives|imports|exports`), `basis` (`observed|reviewed|hypothesis`), `fieldId`, `evidence`. Observed and reviewed edges need scoped evidence in the `from` variant; a hypothesis may have none and is never proof. Entity-level edges are review scope, not proof that a field is read.
+- `assessment`: `rubricVersion`, `confidence` (`low|medium|high|unknown`), `assumptions`, `unknowns`. Proposal identity and rubric results arrive with 4.2.9 as a later extension version.
+
+**Finite limits.** 200 variants, 6 layers, 100 fields, 50 indexes, 100 migrations, 20 serializers, 20 evidence items and 20 notes per variant, 500 dependencies, 512 KiB, text 240 characters. Public text rejects credential markers, emails, URLs and control characters as in v1. No tenant key, record, sample, default, raw source, private URL or executable capability belongs in this format.
+
+**Semantics.** `persistedFieldPresence(snapshot, entityId, layer, name)` answers `present`, `absent-in-layer` or `unknown`. Absence needs a `current` extension, a non-stale non-conflicting entity and variant, no truncation and a `complete` layer. Layers never vouch for each other: a complete physical-DDL layer says nothing about fields inside a serialized payload, and a type does not establish persistence. The v1 `fieldPresence` is unchanged.
+
+**Snapshot.** The scan adds an optional `persistence` block: `{ status }`, or for `current` `{ status, identity, document, freshness }` where `freshness` records per variant whether each evidence hash still matches. `validateEntitySnapshot` accepts exactly that shape and re-validates the document against the entity metadata.
+
+Host producers own the business extraction; PMO generates nothing here and reads no database (see the 4.2.12 decision for the separately approved, local-only introspection that 4.2.13 will add).

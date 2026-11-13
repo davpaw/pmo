@@ -439,7 +439,7 @@
             },
             {
               "id": "4.2.8", "title": "Version persistence and impact metadata with bounded provenance", "summary": "Extend existing Entities contract/reader for physical DDL versus payload/logical/import/demo evidence and unknown deployment coverage; no competing adapter architecture.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.7"],
+              "status": "complete", "completedAt": "2026-11-13", "evidence": ["pmo/src/entity-persistence.js", "pmo/src/entity-persistence.test.js", "pmo/src/entities.js", "pmo/src/node/entity-scan.js", "docs/ENTITY-PERSISTENCE-ASSESSMENT-PLAN.md"], "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.7"],
               "scope": { "docs": ["docs/ENTITY-PERSISTENCE-ASSESSMENT-PLAN.md"], "onboardingReason": "Existing PMO Agent provider/setup and rotation references are unchanged; host-owned public descriptors require host onboarding review." },
               "effort": { "size": "M" },
               "risk": { "level": "high", "notes": "False persisted/production authority, unsafe metadata and unbounded model advice must fail closed." },
