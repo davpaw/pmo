@@ -191,3 +191,16 @@ must be obtained honestly; automated DOM/ARIA does not replace it.
 
 Plan proposal must be pushed, have its own PR and PMO checks/finish. Neither this
 proposal nor a host request authorizes its merge without explicit current approval.
+## Entity metadata generator (4.2.11)
+
+`npm run pmo -- entities generate` writes the host binding `pmo/data/entities.json`; `--check` exits non-zero when the committed file is missing or out of date (for a hook or CI). The Entities scanner is unchanged and still reads only that file.
+
+Configure the sources in `pmo/data/project.json`:
+
+```json
+{ "entitySources": ["apps/api/*.js", "packages/core/store.js"] }
+```
+
+Entries are exact repository-relative JS/TS paths or one-level `dir/*.ext` patterns (test files excluded). Every path must pass `safeEntityPath`; nothing is walked recursively. Files are read with the scanner's rules (no symlinks, no git-ignored files, 512 KiB per file, 200 files, 2 MiB aggregate, no evaluation). A skipped file is reported and counted.
+
+Literal `CREATE TABLE [IF NOT EXISTS]` statements inside the source text become `schema`-class entities `table:<name>` with fields (type, requiredness, key, `unique(...)`), `many-to-one` relationships for `REFERENCES` between generated tables, and one evidence item (path, lines, whole-file SHA-256). Defaults and `CHECK` expressions are never copied. Coverage is `complete` only when the whole statement was read literally and no `ALTER TABLE` for that table appears in any configured source; interpolated names or columns, unparsable parts, duplicates, unresolvable references and rejected names become `partial`, `unresolved` or `skipped` and are never guessed. A `PRIMARY KEY` without `NOT NULL` keeps requiredness and nullability unknown. Physical columns say nothing about fields inside a serialized document column. Output is deterministic (stable order, no timestamps), so editing a configured source changes its evidence hash and `--check` fails until the file is regenerated.
