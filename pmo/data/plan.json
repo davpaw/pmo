@@ -500,7 +500,7 @@
             },
             {
               "id": "4.2.13", "title": "Introspect SQLite and Postgres schemas and declare Redis key patterns for entity metadata", "summary": "A host-run read-only command that writes schema-only entity metadata from SQLite and Postgres catalogs and from reviewed Redis key-pattern declarations, with provenance that says it came from a live store at a time.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.8", "4.2.12"],
+              "status": "complete", "completedAt": "2026-11-13", "evidence": ["pmo/src/node/entity-introspect.js", "pmo/src/node/entity-introspect.test.js", "pmo/src/node/entity-assemble.js", "pmo/src/node/entity-generate.js", "pmo/src/entity-persistence.js", "pmo/src/entity-persistence.test.js", "pmo/src/node/entity-scan.js", "pmo/src/cli.js", "docs/ENTITY-PERSISTENCE-ASSESSMENT-PLAN.md"], "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.8", "4.2.12"],
               "scope": { "docs": ["docs/ENTITY-PERSISTENCE-ASSESSMENT-PLAN.md"] },
               "effort": { "size": "L" },
               "risk": { "level": "high", "notes": "Credentials, production reach and false completeness. A bug could leak a connection string or row data, or present an introspected snapshot as current. Must fail closed and stay schema-only." },

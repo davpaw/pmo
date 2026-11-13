@@ -20,7 +20,7 @@ const unique = (...args) => entityValidators.unique(...args)
 const bool = (...args) => entityValidators.bool(...args)
 
 export const PERSISTENCE_EXTENSION = 'persistence'
-export const PERSISTENCE_VERSIONS = Object.freeze([1])
+export const PERSISTENCE_VERSIONS = Object.freeze([1, 2])
 export const PERSISTENCE_LIMITS = Object.freeze({ bytes: 512 * 1024, variants: 200, layers: 6, fields: 100, indexes: 50, migrations: 100, serializers: 20, evidence: 20, dependencies: 500, notes: 20 })
 export const PERSISTENCE_LAYERS = Object.freeze(['physical-ddl', 'payload', 'logical', 'import', 'demo', 'customer'])
 export const PERSISTENCE_BACKENDS = Object.freeze(['sqlite', 'postgres', 'mysql', 'document', 'key-value', 'file', 'memory', 'api', 'unknown'])
@@ -28,6 +28,15 @@ export const DEPENDENCY_KINDS = Object.freeze(['reads', 'writes', 'references', 
 export const DEPENDENCY_BASES = Object.freeze(['observed', 'reviewed', 'hypothesis'])
 const MISSING = ['omitted', 'null', 'either', 'unknown']
 const CONFIDENCE = ['low', 'medium', 'high', 'unknown']
+export const STORE_KINDS = Object.freeze(['sqlite', 'postgres', 'redis'])
+const ISO = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/
+/** Version 2 only: evidence that is not a source file. It states how, where (redacted label) and when the fact was obtained. */
+const validateStoreEvidence = ev => {
+  object(ev, ['id', 'kind', 'store', 'label', 'at', 'query'])
+  id(ev.id); oneOf(ev.kind, ['introspection', 'declaration']); oneOf(ev.store, STORE_KINDS); text(ev.label); text(ev.query)
+  if (ev.kind === 'introspection' ? (typeof ev.at !== 'string' || !ISO.test(ev.at) || !Number.isFinite(Date.parse(ev.at))) : ev.at !== null) fail()
+}
+export const isStoreEvidence = ev => ev && typeof ev === 'object' && 'kind' in ev
 const oneOf = (value, allowed) => { if (!allowed.includes(value)) fail() }
 
 /** Closed validation of one persistence document. `metadata` (validated entity v1) enables the referential checks. */
@@ -42,12 +51,14 @@ export const validatePersistence = (value, metadata = null) => {
     id(variant.entityId); text(variant.owner, true); text(variant.steward, true); text(variant.resource, true); oneOf(variant.backend, PERSISTENCE_BACKENDS)
     const entity = metadata ? entityOf.get(variant.entityId) : null
     if (metadata && !entity) fail()
-    list(variant.evidence, validateEntityEvidence, PERSISTENCE_LIMITS.evidence); unique(variant.evidence.map(e => e.id))
+    list(variant.evidence, ev => (value.version >= 2 && isStoreEvidence(ev) ? validateStoreEvidence(ev) : validateEntityEvidence(ev)), PERSISTENCE_LIMITS.evidence); unique(variant.evidence.map(e => e.id))
     const refs = (refs, required = true) => { list(refs, id, 20); if ((required && !refs.length) || refs.some(ref => !variant.evidence.some(e => e.id === ref))) fail() }
     list(variant.layers, layer => {
       object(layer, ['kind', 'coverage', 'evidence', 'limitations'])
       oneOf(layer.kind, PERSISTENCE_LAYERS); oneOf(layer.coverage, ['complete', 'partial', 'not-recorded'])
       refs(layer.evidence, layer.coverage !== 'not-recorded'); list(layer.limitations, text, PERSISTENCE_LIMITS.notes)
+      // A store read at one time on one machine is not the deployment: it can show a field is there, never that it is absent.
+      if (layer.coverage === 'complete' && layer.evidence.some(ref => isStoreEvidence(variant.evidence.find(e => e.id === ref)))) fail()
     }, PERSISTENCE_LIMITS.layers)
     unique(variant.layers.map(l => l.kind))
     const layerKinds = variant.layers.map(l => l.kind)

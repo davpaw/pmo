@@ -243,3 +243,26 @@ Implemented in `pmo/src/entity-persistence.js` (pure, browser-safe) and read by 
 **Snapshot.** The scan adds an optional `persistence` block: `{ status }`, or for `current` `{ status, identity, document, freshness }` where `freshness` records per variant whether each evidence hash still matches. `validateEntitySnapshot` accepts exactly that shape and re-validates the document against the entity metadata.
 
 Host producers own the business extraction; PMO generates nothing here and reads no database (see the 4.2.12 decision for the separately approved, local-only introspection that 4.2.13 will add).
+
+## Local introspection (4.2.13)
+
+`npm run pmo -- entities introspect [--check]` implements exactly the 4.2.12 decision: local development only, schema only, run by the host from the CLI. The PMO server, browser and Agent import no database client and never call it (a test walks the source to enforce this).
+
+Configure stores in `pmo/data/project.json` (project data, no secrets):
+
+```json
+{ "entityStores": [
+  { "label": "dev", "kind": "sqlite", "source": "apps/db.js", "path": "var/dev.db" },
+  { "label": "pg", "kind": "postgres", "source": "apps/pg.js", "urlEnv": "PMO_ENTITY_PG_URL" },
+  { "label": "cache", "kind": "redis", "source": "apps/cache.js", "keyPatterns": [{ "pattern": "session:*", "type": "hash", "owner": "auth" }] }
+] }
+```
+
+`label` is a short unique name (it appears in entity ids and provenance). `source` is the safe JS/TS file that declares the store; its hash is the v1 entity evidence, so editing it marks the entities stale. Unknown settings are refused.
+
+- **Refusals.** Refused when `CI` is set. SQLite `path` must be a repository-relative regular file (no symlinks, no `..`, no `.git`/`.env*`), opened read-only with `query_only` on. Postgres reads the URL from the environment variable named by `urlEnv` (the process environment, then `.env.local`; never `.env` or project data), requires a loopback host, runs everything inside `BEGIN READ ONLY` with a 5 s statement timeout, and refuses a superuser role or a writable transaction before reading any catalog. Postgres needs the optional `pg` package, installed by the host; PMO adds no dependency. Redis is never contacted.
+- **What is read.** SQLite `PRAGMA table_info/foreign_key_list/index_list/index_info`; Postgres `information_schema.columns`, `table_constraints`/`key_column_usage` and `pg_index` columns. No user table is selected from; defaults, comments, index predicates, row counts and values are never read into output. Names that the public format rejects are skipped and noted.
+- **Output.** Entities `store:<label>:<table>` (`evidenceClass: deployment-unverified`, coverage `partial`, never `complete`) written to `entities.json`, plus persistence extension **version 2** variants in `entities.persistence.json`. Version 2 adds one evidence kind: `{ id, kind: "introspection"|"declaration", store, label, at, query }`: how, where (the label, never a host or URL) and when. A layer backed by store evidence may not be `complete`, so a local store can show a field is present but never that one is absent, and introspected evidence is reported as unverified content. Redis key patterns become `not-recorded` entities with a `declaration` evidence item.
+- **Merging.** `entities generate` owns `table:*` entities and carries `store:*` entities and their persistence variants forward unchanged; `introspect` owns `store:*` and carries the rest forward. Both recompute the persistence `base.metadataIdentity`. When a store table has the same name as a literal-DDL table but different field names, the store entity gets a reviewed `override` against it, which the scanner shows as a conflict; the literal entity is never overwritten.
+- **Failure.** Every error is a fixed value-free message (connection strings, hosts and credentials never appear); on any failure no file is changed. `--check` re-reads the stores and compares everything except the introspection timestamp.
+- **Not approved.** Staging, production, CI, schema writes, row reads, superuser access and Redis key scans remain prohibited; each would need a new decision step.
