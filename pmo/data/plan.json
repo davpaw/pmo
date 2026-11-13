@@ -490,7 +490,7 @@
             },
             {
               "id": "4.2.12", "title": "Decide how entity metadata may be introspected from live stores", "summary": "Approve or reject a host-run, read-only, schema-only introspection mode for SQLite, Postgres and Redis before any code connects to a store.",
-              "status": "roadmap", "kind": "decision", "modules": ["pmo"], "dependsOn": ["4.2.11"],
+              "status": "complete", "completedAt": "2026-11-13", "evidence": ["docs/ENTITY-PERSISTENCE-ASSESSMENT-PLAN.md"], "kind": "decision", "modules": ["pmo"], "dependsOn": ["4.2.11"],
               "effort": { "size": "S" },
               "risk": { "level": "high", "notes": "Live introspection puts credentials and production reachability in PMO's trust surface. It contradicts the current no-database-reads rule, so it needs explicit owner approval and must not be added incidentally." },
               "value": { "score": 3, "why": "Covers stores whose schema is not literal DDL in source (migrations, ORMs, managed Postgres, Redis) with an owner-approved, bounded method." },
