@@ -204,3 +204,17 @@ Configure the sources in `pmo/data/project.json`:
 Entries are exact repository-relative JS/TS paths or one-level `dir/*.ext` patterns (test files excluded). Every path must pass `safeEntityPath`; nothing is walked recursively. Files are read with the scanner's rules (no symlinks, no git-ignored files, 512 KiB per file, 200 files, 2 MiB aggregate, no evaluation). A skipped file is reported and counted.
 
 Literal `CREATE TABLE [IF NOT EXISTS]` statements inside the source text become `schema`-class entities `table:<name>` with fields (type, requiredness, key, `unique(...)`), `many-to-one` relationships for `REFERENCES` between generated tables, and one evidence item (path, lines, whole-file SHA-256). Defaults and `CHECK` expressions are never copied. Coverage is `complete` only when the whole statement was read literally and no `ALTER TABLE` for that table appears in any configured source; interpolated names or columns, unparsable parts, duplicates, unresolvable references and rejected names become `partial`, `unresolved` or `skipped` and are never guessed. A `PRIMARY KEY` without `NOT NULL` keeps requiredness and nullability unknown. Physical columns say nothing about fields inside a serialized document column. Output is deterministic (stable order, no timestamps), so editing a configured source changes its evidence hash and `--check` fails until the file is regenerated.
+
+## Live introspection decision (4.2.12)
+
+Decided 2026-11-13 by the owner. This narrows the "no database reads" rule above for one case; it does not remove it.
+
+- **Allowed environment:** local development only. A developer's own machine against a local or disposable store. Staging and production are not approved; each needs a later decision step. `introspect` refuses to run when `CI` is set, and a connection must name a loopback host or a local file.
+- **Allowed content:** schema only: tables, columns, types, nullability, keys, foreign keys and indexes. No rows, counts, defaults, comments or values.
+- **Credentials:** connection settings are named environment variables referenced from `project.json` by name, with secrets in `.env.local` (never `.env`, never plan or metadata). A dedicated read-only role is required for Postgres; SQLite opens read-only.
+- **Trigger:** only an explicit host CLI command. The PMO server, browser and Agent never connect to a store and carry no database client.
+- **Redis:** no schema exists, so only reviewed key-pattern declarations are recorded, marked declared and unverified; no `SCAN`, `KEYS` or value reads.
+- **Provenance:** introspected facts say so (store kind, redacted label, time, catalog query identity); they never carry a source hash and are never presented as current deployment truth. A later source-DDL variant of the same table stays separate and disagreement is a visible conflict.
+- **Still prohibited everywhere:** schema writes, row or value reads, production reach, executable host plugins.
+
+Step 4.2.13 implements exactly this and must reject anything outside it.
