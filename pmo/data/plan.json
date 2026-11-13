@@ -478,7 +478,7 @@
             },
             {
               "id": "4.2.11", "title": "Generate entity metadata from literal DDL in host source", "summary": "A PMO command that writes the host's pmo/data/entities.json from literal CREATE TABLE statements in configured JS/TS sources, so the Entities tab follows data stores as they are added.",
-              "status": "roadmap", "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.7"],
+              "status": "complete", "completedAt": "2026-11-13", "evidence": ["pmo/src/node/entity-generate.js", "pmo/src/node/entity-generate.test.js", "pmo/src/cli.js", "docs/ENTITY-PERSISTENCE-ASSESSMENT-PLAN.md"], "kind": "build", "modules": ["pmo"], "dependsOn": ["4.2.7"],
               "scope": { "docs": ["docs/ENTITY-PERSISTENCE-ASSESSMENT-PLAN.md"] },
               "effort": { "size": "M" },
               "risk": { "level": "medium", "notes": "A generator that over-claims completeness would make the Entities tab and Agent assert false field absence. Output must pass validateEntityMetadata, stay schema-only and mark anything it cannot read literally as unknown." },

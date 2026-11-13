@@ -21,6 +21,7 @@ import { gatherFacts } from './node/preflight.js'
 import { commandAgent } from './node/agent-setup.js'
 import { commandPlan } from './node/plan-command.js'
 import { commandRelease } from './node/release.js'
+import { generateEntities, writeEntities } from './node/entity-generate.js'
 import { releaseManifestProblems } from './release-policy.js'
 
 export const PLAN_PATH = 'pmo/data/plan.json'
@@ -175,6 +176,23 @@ const commandBrief = async ({ root, data, args, out }) => {
 const fail = (out, message) => {
   out.error(message)
   return 1
+}
+
+const commandEntities = ({ root, data, args, out }) => {
+  if (args.positional[1] !== 'generate') return fail(out, 'Usage: pmo entities generate [--check]')
+  let result
+  try { result = generateEntities({ root, project: data.project }) } catch (error) { return fail(out, error.message) }
+  const { changed, missing, file } = writeEntities({ root, result, check: args.flags.check === true })
+  for (const note of result.notes) out.log(`note: ${note}`)
+  const { metadata } = result
+  out.log(`${metadata.entities.length} entit${metadata.entities.length === 1 ? 'y' : 'ies'} from ${result.files} source file(s); ${metadata.entities.filter(e => e.coverage === 'complete').length} complete; unresolved ${metadata.coverage.unresolved}, skipped ${metadata.coverage.skipped}${metadata.coverage.truncated ? ', truncated' : ''}.`)
+  if (args.flags.check) {
+    if (changed) return fail(out, `${file} is ${missing ? 'missing' : 'out of date'}. Run: npm run pmo -- entities generate`)
+    out.log(`${file} is current.`)
+    return 0
+  }
+  out.log(changed ? `wrote ${file}` : `${file} unchanged`)
+  return 0
 }
 
 const commandStart = async ({ root, data, args, out }) => {
@@ -359,6 +377,7 @@ const HELP = `pmo - Program management
   finish                            Verify complete evidence, clean/pushed head and PR delivery
   prs [sync|status]                  Refresh/show PR decisions and delivery
   agent [status|setup|prompt]        Configure the Ask the PMO Agent window (key stays in .env.local)
+  entities generate [--check]        Write pmo/data/entities.json from literal CREATE TABLE in project.json entitySources (--check: fail if stale)
   plan template|add|set|remove|epic|workstream  Change the plan without hand-editing plan.json (plan/ branch; see pmo plan)`
 
 /** @returns {Promise<number>} exit code */
@@ -416,6 +435,7 @@ export const run = async (argv, { root, out = console, prompt, jira, fetchImpl, 
     case 'build': return commandBuild(ctx)
     case 'hooks': return commandHooks(ctx)
     case 'agent': return commandAgent(ctx)
+    case 'entities': return commandEntities(ctx)
     case 'plan': return commandPlan({ ...ctx, moduleIds: packageIds(root), planPath: PLAN_PATH })
     default:
       out.log(HELP)
